@@ -26,6 +26,7 @@ the specification is considered a bug.
 * [1. Error responses](#1-error-responses)
     * [1.1. Response types](#11-response-types)
     * [1.2. Functions](#12-functions)
+* [2. `Location`](#2-location)
 
 ## 1. Error responses
 
@@ -78,3 +79,18 @@ public isolated function invalidInput(dataservice:ConversionError err, string en
 
 As `dataservice:toDataserviceError` defines, the detail of a constraint violation or an internal error is logged and
 not returned to the caller.
+
+## 2. `Location`
+
+```ballerina
+public isolated function location(string path, dataservice:KeyValue[] key) returns string;
+```
+
+`location` returns the path of a created record: `path` followed by one segment per key value, in key order. `path`
+is the path of the entity's collection, including the service's base path, such as `/api/employees`, or
+`/employees` when the base path is `/`.
+
+Each key value is written with `toString`, so `1.5` stays `1.5` and a `decimal` keeps its scale, and is then
+percent-encoded as a path segment: every byte of its UTF-8 form other than an RFC 3986 unreserved character
+(letters, digits, `-`, `.`, `_` and `~`) is written as `%XX`. For example, the key `["P 1/a", 1]` of
+`/api/assignments` gives `/api/assignments/P%201%2Fa/1`.

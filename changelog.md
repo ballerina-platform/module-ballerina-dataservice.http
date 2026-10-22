@@ -8,4 +8,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- [Add the error responses of HTTP data services](https://github.com/ballerina-platform/ballerina-spec/issues/1513)
+- [Add the error responses and `Location` building of HTTP data services](https://github.com/ballerina-platform/ballerina-spec/issues/1513)
