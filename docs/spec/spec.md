@@ -48,8 +48,6 @@ public type NotFound record {|
     *http:NotFound;
     dataservice:DataserviceError body;
 |};
-
-public type ErrorResponse NotFound|InvalidInput|Conflict|ConstraintViolation|InternalError;
 ```
 
 The other four types have the same form. Other invalid input, such as a missing field or a path segment that does
@@ -58,35 +56,53 @@ the `ballerina/http` default error body.
 
 ### 1.2. Functions
 
+A generated resource declares only the responses its operation can return, so each operation has its own function.
+Each maps an error that the persist client returned with `dataservice:toErrorBody`. `entity` is the entity's name
+and `key` holds the record's key values, in key order.
+
 ```ballerina
-public isolated function errorResponse(error err, string entity, dataservice:KeyValue[] key = [])
-        returns ErrorResponse;
+public isolated function toListError(error err) returns InternalError;
 
-public isolated function internalError(error err) returns InternalError;
+public isolated function toGetError(error err, string entity, dataservice:KeyValue[] key)
+        returns NotFound|InternalError;
 
-public isolated function invalidInput(dataservice:ConversionError err, string entity, string 'field)
+public isolated function toCreateError(error err, string entity, dataservice:KeyValue[] key = [])
+        returns NotFound|Conflict|ConstraintViolation|InternalError;
+
+public isolated function toUpdateError(error err, string entity, dataservice:KeyValue[] key)
+        returns NotFound|ConstraintViolation|InternalError;
+
+public isolated function toDeleteError(error err, string entity, dataservice:KeyValue[] key)
+        returns NotFound|ConstraintViolation|InternalError;
+
+public isolated function toInvalidInput(dataservice:ConversionError err, string entity, string 'field)
         returns InvalidInput;
 ```
 
-- **`errorResponse`** maps an error that the persist client returned with `dataservice:toDataserviceError`, and
-  returns the response type of its category. `entity` is the entity's name and `key` holds the record's key values,
-  in key order.
-- **`internalError`** returns `InternalError` for any error. A generated service uses it where only an internal error
-  can occur, such as reading many records.
-- **`invalidInput`** returns `InvalidInput` for a request value that did not parse, with the message
-  `The field '<field>' of the entity '<Entity>' is not <format>.`, where `<format>` is the `format` of the
-  conversion error: `an ISO 8601 date`, `an ISO 8601 time`, `an ISO 8601 date-time` or `a base64 string`.
+| Function | Used for | Responses |
+|---|---|---|
+| `toListError` | Reading many records | `500` |
+| `toGetError` | Reading one record | `404`, `500` |
+| `toCreateError` | Creating records, and reading a created record back by its key | `404` (a record deleted before it was read back), `409` `CONFLICT`, `409` `CONSTRAINT_VIOLATION`, `500` |
+| `toUpdateError` | Updating a record | `404`, `409` `CONSTRAINT_VIOLATION`, `500` |
+| `toDeleteError` | Deleting a record | `404`, `409` `CONSTRAINT_VIOLATION`, `500` |
+| `toInvalidInput` | A request value that does not parse | `400` |
 
-As `dataservice:toDataserviceError` defines, the detail of a constraint violation or an internal error is logged and
-not returned to the caller.
+An error whose category is not among an operation's responses is answered with `500` and the `INTERNAL` body, and is
+logged. `toInvalidInput` builds the message `The field '<field>' of the entity '<Entity>' is not <format>.`, where
+`<format>` is the `format` of the conversion error: `an ISO 8601 date`, `an ISO 8601 time`, `an ISO 8601 date-time`
+or `a base64 string`.
+
+As `dataservice:toErrorBody` defines, the detail of a constraint violation or an internal error is logged and not
+returned to the caller.
 
 ## 2. `Location`
 
 ```ballerina
-public isolated function location(string path, dataservice:KeyValue[] key) returns string;
+public isolated function buildLocation(string path, dataservice:KeyValue[] key) returns string;
 ```
 
-`location` returns the path of a created record: `path` followed by one segment per key value, in key order. `path`
+`buildLocation` returns the path of a created record: `path` followed by one segment per key value, in key order. `path`
 is the path of the entity's collection, including the service's base path, such as `/api/employees`, or
 `/employees` when the base path is `/`.
 

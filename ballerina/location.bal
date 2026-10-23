@@ -21,7 +21,7 @@ import ballerina/dataservice;
 # + path - The path of the entity's collection, such as `/api/employees`
 # + key - The values of the record's key fields, in key order
 # + return - The path of the record, such as `/api/employees/1`
-public isolated function location(string path, dataservice:KeyValue[] key) returns string {
+public isolated function buildLocation(string path, dataservice:KeyValue[] key) returns string {
     string location = path;
     foreach dataservice:KeyValue value in key {
         location += "/" + encodeSegment(value.toString());

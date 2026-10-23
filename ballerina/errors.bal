@@ -57,18 +57,33 @@ public type InternalError record {|
     dataservice:DataserviceError body;
 |};
 
-# Any error response of a data service operation.
-public type ErrorResponse NotFound|InvalidInput|Conflict|ConstraintViolation|InternalError;
-
-# Builds the error response for an error that the persist client returned.
+# Maps an error from reading many records to the `500` response.
 #
-# + err - The error
+# + err - The error the persist client returned
+# + return - The `500` response
+public isolated function toListError(error err) returns InternalError => toInternalError(err);
+
+# Maps an error from reading one record to its response.
+#
+# + err - The error the persist client returned
 # + entity - The name of the entity
 # + key - The values of the record's key fields, in key order
-# + return - The response for the error's category
-public isolated function errorResponse(error err, string entity, dataservice:KeyValue[] key = [])
-        returns ErrorResponse {
-    dataservice:DataserviceError body = dataservice:toDataserviceError(err, entity, key);
+# + return - The `404` or `500` response
+public isolated function toGetError(error err, string entity, dataservice:KeyValue[] key)
+        returns NotFound|InternalError {
+    dataservice:DataserviceError body = dataservice:toErrorBody(err, entity, key);
+    return body.code == dataservice:NOT_FOUND ? <NotFound>{body} : toInternalError(err, body);
+}
+
+# Maps an error from creating records, or from reading a created record back, to its response.
+#
+# + err - The error the persist client returned
+# + entity - The name of the entity
+# + key - The values of the key fields of the record read back, in key order
+# + return - The `404`, `409` or `500` response
+public isolated function toCreateError(error err, string entity, dataservice:KeyValue[] key = [])
+        returns NotFound|Conflict|ConstraintViolation|InternalError {
+    dataservice:DataserviceError body = dataservice:toErrorBody(err, entity, key);
     match body.code {
         dataservice:NOT_FOUND => {
             return <NotFound>{body};
@@ -79,32 +94,62 @@ public isolated function errorResponse(error err, string entity, dataservice:Key
         dataservice:CONSTRAINT_VIOLATION => {
             return <ConstraintViolation>{body};
         }
-        dataservice:INVALID_INPUT => {
-            return <InvalidInput>{body};
-        }
     }
-    return <InternalError>{body};
+    return toInternalError(err, body);
 }
 
-# Builds the response for an error that can only be internal, such as one from reading many records.
+# Maps an error from updating a record to its response.
 #
-# + err - The error
-# + return - The `500` response
-public isolated function internalError(error err) returns InternalError {
-    // Wrapping the error keeps a persist error of another category from changing the code.
-    return {body: dataservice:toDataserviceError(error(err.message(), err))};
-}
+# + err - The error the persist client returned
+# + entity - The name of the entity
+# + key - The values of the record's key fields, in key order
+# + return - The `404`, `409` or `500` response
+public isolated function toUpdateError(error err, string entity, dataservice:KeyValue[] key)
+        returns NotFound|ConstraintViolation|InternalError => toWriteError(err, entity, key);
 
-# Builds the response for a field value that is not in its JSON format.
+# Maps an error from deleting a record to its response.
+#
+# + err - The error the persist client returned
+# + entity - The name of the entity
+# + key - The values of the record's key fields, in key order
+# + return - The `404`, `409` or `500` response
+public isolated function toDeleteError(error err, string entity, dataservice:KeyValue[] key)
+        returns NotFound|ConstraintViolation|InternalError => toWriteError(err, entity, key);
+
+# Maps a field value that is not in its JSON format to the `400` response.
 #
 # + err - The error from the `ballerina/dataservice` conversion
 # + entity - The name of the entity
 # + 'field - The name of the field
 # + return - The `400` response
-public isolated function invalidInput(dataservice:ConversionError err, string entity, string 'field)
+public isolated function toInvalidInput(dataservice:ConversionError err, string entity, string 'field)
         returns InvalidInput => {
     body: {
         code: dataservice:INVALID_INPUT,
         message: string `The field '${'field}' of the entity '${entity}' is not ${err.detail().format}.`
     }
 };
+
+// Conflict and ConstraintViolation have the same shape, so the category is decided from the body's code.
+isolated function toWriteError(error err, string entity, dataservice:KeyValue[] key)
+        returns NotFound|ConstraintViolation|InternalError {
+    dataservice:DataserviceError body = dataservice:toErrorBody(err, entity, key);
+    match body.code {
+        dataservice:NOT_FOUND => {
+            return <NotFound>{body};
+        }
+        dataservice:CONSTRAINT_VIOLATION => {
+            return <ConstraintViolation>{body};
+        }
+    }
+    return toInternalError(err, body);
+}
+
+// A body of another category is replaced, and logged as internal, so the code always matches the status.
+isolated function toInternalError(error err, dataservice:DataserviceError? body = ())
+        returns InternalError {
+    if body is dataservice:DataserviceError && body.code == dataservice:INTERNAL {
+        return {body};
+    }
+    return {body: dataservice:toErrorBody(error(err.message(), err))};
+}

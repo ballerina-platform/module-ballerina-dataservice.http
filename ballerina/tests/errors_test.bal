@@ -18,61 +18,103 @@ import ballerina/dataservice;
 import ballerina/persist;
 import ballerina/test;
 
+final dataservice:DataserviceError internal = {code: dataservice:INTERNAL, message: "An internal error occurred."};
+
 @test:Config
-function testNotFound() {
-    ErrorResponse response = errorResponse(error persist:NotFoundError("no row"), "Employee", [99]);
+function testListError() {
+    InternalError response = toListError(error persist:Error("connection refused"));
+    test:assertEquals(response.body, internal);
+    test:assertEquals(response.status.code, 500);
+}
+
+@test:Config
+function testListErrorKeepsCodeForOtherCategories() {
+    test:assertEquals(toListError(error persist:NotFoundError("no row")).body, internal);
+}
+
+@test:Config
+function testGetErrorNotFound() {
+    NotFound|InternalError response = toGetError(error persist:NotFoundError("no row"), "Employee", [99]);
     test:assertTrue(response is NotFound);
     test:assertEquals(response.body, {
         code: dataservice:NOT_FOUND,
         message: "A record with the key '99' does not exist for the entity 'Employee'."
     });
+    test:assertEquals(response.status.code, 404);
 }
 
 @test:Config
-function testNotFoundCompositeKey() {
-    ErrorResponse response = errorResponse(error persist:NotFoundError("no row"), "Assignment", ["P 1/a", 1]);
+function testGetErrorCompositeKey() {
+    NotFound|InternalError response = toGetError(error persist:NotFoundError("no row"), "Assignment", ["P 1/a", 1]);
     test:assertEquals(response.body.message,
             "A record with the key 'P 1/a/1' does not exist for the entity 'Assignment'.");
 }
 
 @test:Config
-function testConflict() {
-    ErrorResponse response = errorResponse(error persist:AlreadyExistsError("Duplicate entry"), "Employee", [1]);
+function testGetErrorOtherCategoryIsInternal() {
+    NotFound|InternalError response = toGetError(error persist:AlreadyExistsError("exists"), "Employee", [1]);
+    test:assertTrue(response is InternalError);
+    test:assertEquals(response.body, internal);
+}
+
+@test:Config
+function testCreateErrorConflict() {
+    NotFound|Conflict|ConstraintViolation|InternalError response =
+        toCreateError(error persist:AlreadyExistsError("Duplicate entry"), "Employee");
     test:assertTrue(response is Conflict);
     test:assertEquals(response.body, {
         code: dataservice:CONFLICT,
         message: "A record that conflicts with an existing record of the entity 'Employee' already exists."
     });
-}
-
-@test:Config
-function testConstraintViolation() {
-    ErrorResponse response = errorResponse(error persist:ConstraintViolationError("FK_1 violated"), "Employee", [1]);
-    test:assertEquals(response.body, {
-        code: dataservice:CONSTRAINT_VIOLATION,
-        message: "The operation violates a constraint of the entity 'Employee'."
-    });
     test:assertEquals(response.status.code, 409);
 }
 
 @test:Config
-function testInternal() {
-    ErrorResponse response = errorResponse(error persist:Error("connection refused"), "Employee");
-    test:assertTrue(response is InternalError);
-    test:assertEquals(response.body, {code: dataservice:INTERNAL, message: "An internal error occurred."});
+function testCreateErrorConstraintViolation() {
+    NotFound|Conflict|ConstraintViolation|InternalError response =
+        toCreateError(error persist:ConstraintViolationError("FK_1 violated"), "Employee");
+    test:assertTrue(response is ConstraintViolation);
+    test:assertEquals(response.status.code, 409);
 }
 
 @test:Config
-function testInternalError() {
-    InternalError response = internalError(error persist:Error("connection refused"));
-    test:assertEquals(response.body, {code: dataservice:INTERNAL, message: "An internal error occurred."});
-    test:assertEquals(response.status.code, 500);
+function testCreateErrorReadBackNotFound() {
+    NotFound|Conflict|ConstraintViolation|InternalError response =
+        toCreateError(error persist:NotFoundError("no row"), "Employee", [7]);
+    test:assertTrue(response is NotFound);
 }
 
 @test:Config
-function testInternalErrorKeepsCodeForOtherCategories() {
-    InternalError response = internalError(error persist:NotFoundError("no row"));
-    test:assertEquals(response.body, {code: dataservice:INTERNAL, message: "An internal error occurred."});
+function testCreateErrorInternal() {
+    test:assertEquals(toCreateError(error persist:Error("connection refused"), "Employee").body, internal);
+}
+
+@test:Config
+function testUpdateErrorConstraintViolation() {
+    NotFound|ConstraintViolation|InternalError response =
+        toUpdateError(error persist:ConstraintViolationError("FK_1 violated"), "Employee", [1]);
+    test:assertTrue(response is ConstraintViolation);
+    test:assertEquals(response.body, {
+        code: dataservice:CONSTRAINT_VIOLATION,
+        message: "The operation violates a constraint of the entity 'Employee'."
+    });
+}
+
+@test:Config
+function testUpdateErrorNotFound() {
+    test:assertTrue(toUpdateError(error persist:NotFoundError("no row"), "Employee", [1]) is NotFound);
+}
+
+@test:Config
+function testUpdateErrorConflictIsInternal() {
+    test:assertEquals(toUpdateError(error persist:AlreadyExistsError("exists"), "Employee", [1]).body, internal);
+}
+
+@test:Config
+function testDeleteErrors() {
+    test:assertTrue(toDeleteError(error persist:NotFoundError("no row"), "Employee", [1]) is NotFound);
+    test:assertTrue(toDeleteError(error persist:ConstraintViolationError("FK"), "Employee", [1]) is ConstraintViolation);
+    test:assertEquals(toDeleteError(error persist:Error("boom"), "Employee", [1]).body, internal);
 }
 
 @test:Config
@@ -81,7 +123,7 @@ function testInvalidInput() {
     if result !is dataservice:ConversionError {
         test:assertFail("expected a conversion error");
     }
-    InvalidInput response = invalidInput(result, "Employee", "hiredOn");
+    InvalidInput response = toInvalidInput(result, "Employee", "hiredOn");
     test:assertEquals(response.body, {
         code: dataservice:INVALID_INPUT,
         message: "The field 'hiredOn' of the entity 'Employee' is not an ISO 8601 date."
@@ -97,7 +139,7 @@ function testInvalidInputFormats() {
                 dataservice:utcFromString("x"), dataservice:bytesFromString("x")
             ] {
         if result is dataservice:ConversionError {
-            messages.push(invalidInput(result, "Doc", "f").body.message);
+            messages.push(toInvalidInput(result, "Doc", "f").body.message);
         }
     }
     test:assertEquals(messages, [

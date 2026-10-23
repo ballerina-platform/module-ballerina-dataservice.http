@@ -19,19 +19,20 @@ import ballerina/persist;
 import ballerina/test;
 
 service /api on new http:Listener(9590) {
-    resource function get errors/[string category]() returns ErrorResponse {
+    resource function get errors/[string category]()
+            returns NotFound|Conflict|ConstraintViolation|InternalError {
         match category {
             "notFound" => {
-                return errorResponse(error persist:NotFoundError("no row"), "Employee", [99]);
+                return toGetError(error persist:NotFoundError("no row"), "Employee", [99]);
             }
             "conflict" => {
-                return errorResponse(error persist:AlreadyExistsError("exists"), "Employee", [1]);
+                return toCreateError(error persist:AlreadyExistsError("exists"), "Employee");
             }
             "constraint" => {
-                return errorResponse(error persist:ConstraintViolationError("FK"), "Employee", [1]);
+                return toDeleteError(error persist:ConstraintViolationError("FK"), "Employee", [1]);
             }
         }
-        return internalError(error("boom"));
+        return toListError(error("boom"));
     }
 }
 
