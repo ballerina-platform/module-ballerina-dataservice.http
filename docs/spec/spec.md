@@ -3,17 +3,17 @@
 _Owners_: @niveathika  
 _Reviewers_:  
 _Created_: 2026/10/22  
-_Updated_: 2026/10/22  
+_Updated_: 2026/10/23  
 _Edition_: Swan Lake
 
 ## Introduction
 
 This is the specification for the `ballerina/dataservice.http` package of the [Ballerina language](https://ballerina.io/).
 The package is the HTTP runtime of the data services that `bal persist` generates when
-`options.dataservice.protocol = "http"`, as defined in the
-[HTTP data service proposal](https://github.com/ballerina-platform/ballerina-spec/issues/1513). A generated service
-imports it as `dsHttp` and calls its functions to build error responses and `Location` headers, so a fix to one of them
-is released without regenerating the service.
+`options.dataservice.protocol = "http"`. A generated service imports it as `dsHttp` and calls its functions to build
+error responses and `Location` headers, so a fix to one of them is released without regenerating the service. The
+generated service itself is specified in the
+[persist tool specification](https://github.com/ballerina-platform/persist-tools/blob/main/docs/spec/spec.md#76-the-http-service).
 
 The functions that generated code calls are a stable API. New behaviour is added through new functions or optional
 parameters.
