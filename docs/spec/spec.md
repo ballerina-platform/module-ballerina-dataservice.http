@@ -66,11 +66,11 @@ public isolated function toListError(error err) returns InternalError;
 public isolated function toGetError(error err, string entity, dataservice:KeyValue[] key)
         returns NotFound|InternalError;
 
-public isolated function toCreateError(error err, string entity, dataservice:KeyValue[] key = [])
-        returns NotFound|Conflict|ConstraintViolation|InternalError;
+public isolated function toCreateError(error err, string entity)
+        returns Conflict|ConstraintViolation|InternalError;
 
 public isolated function toUpdateError(error err, string entity, dataservice:KeyValue[] key)
-        returns NotFound|ConstraintViolation|InternalError;
+        returns NotFound|Conflict|ConstraintViolation|InternalError;
 
 public isolated function toDeleteError(error err, string entity, dataservice:KeyValue[] key)
         returns NotFound|ConstraintViolation|InternalError;
@@ -83,13 +83,13 @@ public isolated function toInvalidInput(dataservice:ConversionError err, string 
 |---|---|---|
 | `toListError` | Reading many records | `500` |
 | `toGetError` | Reading one record | `404`, `500` |
-| `toCreateError` | Creating records, and reading a created record back by its key | `404` (a record deleted before it was read back), `409` `CONFLICT`, `409` `CONSTRAINT_VIOLATION`, `500` |
-| `toUpdateError` | Updating a record | `404`, `409` `CONSTRAINT_VIOLATION`, `500` |
+| `toCreateError` | Creating records, and reading a created record back by its key | `409` `CONFLICT`, `409` `CONSTRAINT_VIOLATION`, `500` |
+| `toUpdateError` | Updating a record | `404`, `409` `CONFLICT`, `409` `CONSTRAINT_VIOLATION`, `500` |
 | `toDeleteError` | Deleting a record | `404`, `409` `CONSTRAINT_VIOLATION`, `500` |
 | `toInvalidInput` | A request value that does not parse | `400` |
 
 An error whose category is not among an operation's responses is answered with `500` and the `INTERNAL` body, and is
-logged. `toInvalidInput` builds the message `The field '<field>' of the entity '<Entity>' is not <format>.`, where
+logged. A created record that is not found when it is read back is therefore a `500`, because the create succeeded. `toInvalidInput` builds the message `The field '<field>' of the entity '<Entity>' is not <format>.`, where
 `<format>` is the `format` of the conversion error: `an ISO 8601 date`, `an ISO 8601 time`, `an ISO 8601 date-time`
 or `a base64 string`.
 

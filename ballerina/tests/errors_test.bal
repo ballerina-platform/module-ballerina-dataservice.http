@@ -59,7 +59,7 @@ function testGetErrorOtherCategoryIsInternal() {
 
 @test:Config
 function testCreateErrorConflict() {
-    NotFound|Conflict|ConstraintViolation|InternalError response =
+    Conflict|ConstraintViolation|InternalError response =
         toCreateError(error persist:AlreadyExistsError("Duplicate entry"), "Employee");
     test:assertTrue(response is Conflict);
     test:assertEquals(response.body, {
@@ -71,17 +71,18 @@ function testCreateErrorConflict() {
 
 @test:Config
 function testCreateErrorConstraintViolation() {
-    NotFound|Conflict|ConstraintViolation|InternalError response =
+    Conflict|ConstraintViolation|InternalError response =
         toCreateError(error persist:ConstraintViolationError("FK_1 violated"), "Employee");
     test:assertTrue(response is ConstraintViolation);
     test:assertEquals(response.status.code, 409);
 }
 
 @test:Config
-function testCreateErrorReadBackNotFound() {
-    NotFound|Conflict|ConstraintViolation|InternalError response =
-        toCreateError(error persist:NotFoundError("no row"), "Employee", [7]);
-    test:assertTrue(response is NotFound);
+function testCreateErrorReadBackNotFoundIsInternal() {
+    Conflict|ConstraintViolation|InternalError response =
+        toCreateError(error persist:NotFoundError("no row"), "Employee");
+    test:assertTrue(response is InternalError);
+    test:assertEquals(response.body, internal);
 }
 
 @test:Config
@@ -91,7 +92,7 @@ function testCreateErrorInternal() {
 
 @test:Config
 function testUpdateErrorConstraintViolation() {
-    NotFound|ConstraintViolation|InternalError response =
+    NotFound|Conflict|ConstraintViolation|InternalError response =
         toUpdateError(error persist:ConstraintViolationError("FK_1 violated"), "Employee", [1]);
     test:assertTrue(response is ConstraintViolation);
     test:assertEquals(response.body, {
@@ -106,8 +107,11 @@ function testUpdateErrorNotFound() {
 }
 
 @test:Config
-function testUpdateErrorConflictIsInternal() {
-    test:assertEquals(toUpdateError(error persist:AlreadyExistsError("exists"), "Employee", [1]).body, internal);
+function testUpdateErrorConflict() {
+    NotFound|Conflict|ConstraintViolation|InternalError response =
+        toUpdateError(error persist:AlreadyExistsError("exists"), "Employee", [1]);
+    test:assertTrue(response is Conflict);
+    test:assertEquals(response.body.code, dataservice:CONFLICT);
 }
 
 @test:Config
