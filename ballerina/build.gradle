@@ -52,6 +52,10 @@ def stripBallerinaExtensionVersion(String extVersion) {
     }
 }
 
+dependencies {
+    ballerinaStdLibs "io.ballerina.lib:dataservice-ballerina:${stdlibDataserviceVersion}"
+}
+
 ballerina {
     packageOrganization = packageOrg
     module = packageName
