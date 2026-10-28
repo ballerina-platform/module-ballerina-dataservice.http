@@ -77,6 +77,9 @@ public isolated function toDeleteError(error err, string entity, dataservice:Key
 
 public isolated function toInvalidInput(dataservice:ConversionError err, string entity, string 'field)
         returns InvalidInput;
+
+public isolated function toQueryError(dataservice:DataserviceError|dataservice:ConversionError err, string entity)
+        returns InvalidInput;
 ```
 
 | Function | Used for | Responses |
@@ -87,11 +90,13 @@ public isolated function toInvalidInput(dataservice:ConversionError err, string 
 | `toUpdateError` | Updating a record | `404`, `409` `CONFLICT`, `409` `CONSTRAINT_VIOLATION`, `500` |
 | `toDeleteError` | Deleting a record | `404`, `409` `CONSTRAINT_VIOLATION`, `500` |
 | `toInvalidInput` | A request value that does not parse | `400` |
+| `toQueryError` | An invalid query option, from `dataservice:query` or `dataservice:checkFields` | `400` |
 
 An error whose category is not among an operation's responses is answered with `500` and the `INTERNAL` body, and is
 logged. A created record that is not found when it is read back is therefore a `500`, because the create succeeded. `toInvalidInput` builds the message `The field '<field>' of the entity '<Entity>' is not <format>.`, where
 `<format>` is the `format` of the conversion error: `an ISO 8601 date`, `an ISO 8601 time`, `an ISO 8601 date-time`
-or `a base64 string`.
+or `a base64 string`. `toQueryError` returns the error body as it is, and builds the same message for a filter value that
+does not parse, with the field the conversion error names.
 
 As `dataservice:toErrorBody` defines, the detail of a constraint violation or an internal error is logged and not
 returned to the caller.

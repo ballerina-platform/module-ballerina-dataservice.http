@@ -152,6 +152,19 @@ public isolated function toInvalidInput(dataservice:ConversionError err, string 
     }
 };
 
+# Maps an invalid query option to the `400` response.
+#
+# + err - The error body, or the conversion error of a filter value, from `dataservice:query` or `dataservice:checkFields`
+# + entity - The name of the entity
+# + return - The `400` response
+public isolated function toQueryError(dataservice:DataserviceError|dataservice:ConversionError err, string entity)
+        returns InvalidInput {
+    if err is dataservice:ConversionError {
+        return toInvalidInput(err, entity, err.detail().'field ?: "");
+    }
+    return {body: err};
+}
+
 // A body of another category is replaced, and logged as internal, so the code always matches the status.
 isolated function toInternalError(error err, dataservice:DataserviceError? body = ())
         returns InternalError {

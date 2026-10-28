@@ -153,3 +153,32 @@ function testInvalidInputFormats() {
         "The field 'f' of the entity 'Doc' is not a base64 string."
     ]);
 }
+
+@test:Config
+function testQueryError() {
+    dataservice:PageConfig config = {size: 10, maxSize: 10};
+    dataservice:Entity entity = {
+        name: "Employee",
+        'resource: "employees",
+        datastore: dataservice:H2,
+        fields: [
+            {name: "id", column: "id", 'type: dataservice:INT, key: true},
+            {name: "hiredOn", column: "hiredOn", 'type: dataservice:DATE}
+        ]
+    };
+    dataservice:Query|dataservice:DataserviceError|dataservice:ConversionError result =
+        dataservice:query(entity, config, {hiredOn: {eq: "2024-1-1"}});
+    if result is dataservice:Query {
+        test:assertFail("Expected an error");
+    }
+    InvalidInput response = toQueryError(result, "Employee");
+    test:assertEquals(response.body.message, "The field 'hiredOn' of the entity 'Employee' is not an ISO 8601 date.");
+    result = dataservice:query(entity, config, size = 0);
+    if result is dataservice:Query {
+        test:assertFail("Expected an error");
+    }
+    test:assertEquals(toQueryError(result, "Employee").body, {
+        code: dataservice:INVALID_INPUT,
+        message: "The page size must be at least 1."
+    });
+}
