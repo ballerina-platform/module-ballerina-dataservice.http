@@ -18,6 +18,9 @@ dependencies = [
 	{org = "ballerina", name = "lang.string"},
 	{org = "ballerina", name = "log"}
 ]
+modules = [
+	{org = "ballerina", packageName = "auth", moduleName = "auth"}
+]
 
 [[package]]
 org = "ballerina"
@@ -61,6 +64,7 @@ org = "ballerina"
 name = "dataservice"
 version = "0.1.0"
 dependencies = [
+	{org = "ballerina", name = "constraint"},
 	{org = "ballerina", name = "lang.array"},
 	{org = "ballerina", name = "lang.regexp"},
 	{org = "ballerina", name = "log"},
@@ -77,8 +81,12 @@ org = "ballerina"
 name = "dataservice.http"
 version = "0.1.0"
 dependencies = [
+	{org = "ballerina", name = "auth"},
 	{org = "ballerina", name = "dataservice"},
 	{org = "ballerina", name = "http"},
+	{org = "ballerina", name = "jwt"},
+	{org = "ballerina", name = "lang.array"},
+	{org = "ballerina", name = "oauth2"},
 	{org = "ballerina", name = "persist"},
 	{org = "ballerina", name = "test"}
 ]
@@ -158,6 +166,9 @@ dependencies = [
 	{org = "ballerina", name = "log"},
 	{org = "ballerina", name = "time"}
 ]
+modules = [
+	{org = "ballerina", packageName = "jwt", moduleName = "jwt"}
+]
 
 [[package]]
 org = "ballerina"
@@ -175,6 +186,9 @@ version = "0.0.0"
 dependencies = [
 	{org = "ballerina", name = "jballerina.java"},
 	{org = "ballerina", name = "lang.__internal"}
+]
+modules = [
+	{org = "ballerina", packageName = "lang.array", moduleName = "lang.array"}
 ]
 
 [[package]]
@@ -275,6 +289,9 @@ dependencies = [
 	{org = "ballerina", name = "log"},
 	{org = "ballerina", name = "time"},
 	{org = "ballerina", name = "url"}
+]
+modules = [
+	{org = "ballerina", packageName = "oauth2", moduleName = "oauth2"}
 ]
 
 [[package]]

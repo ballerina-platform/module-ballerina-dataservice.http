@@ -27,6 +27,7 @@ the specification is considered a bug.
     * [1.1. Response types](#11-response-types)
     * [1.2. Functions](#12-functions)
 * [2. `Location`](#2-location)
+* [3. Auth](#3-auth)
 
 ## 1. Error responses
 
@@ -41,6 +42,7 @@ record.
 | `Conflict` | `http:Conflict` | `409` | `CONFLICT` | `persist:AlreadyExistsError` |
 | `ConstraintViolation` | `http:Conflict` | `409` | `CONSTRAINT_VIOLATION` | `persist:ConstraintViolationError` |
 | `InvalidInput` | `http:BadRequest` | `400` | `INVALID_INPUT` | A date, time or `byte[]` value that does not parse |
+| `Forbidden` | `http:Forbidden` | `403` | `FORBIDDEN` | Get related or a relation in `fields` whose `read` scopes the entity's do not cover, built with `dataservice:forbidden` |
 | `InternalError` | `http:InternalServerError` | `500` | `INTERNAL` | Any other error |
 
 ```ballerina
@@ -50,7 +52,7 @@ public type NotFound record {|
 |};
 ```
 
-The other four types have the same form. Other invalid input, such as a missing field or a path segment that does
+The other five types have the same form. Other invalid input, such as a missing field or a path segment that does
 not convert to the key's type, is answered by `ballerina/http` with `400` before the resource runs, so its body is
 the `ballerina/http` default error body.
 
@@ -115,3 +117,15 @@ Each key value is written with `toString`, so `1.5` stays `1.5` and a `decimal` 
 percent-encoded as a path segment: every byte of its UTF-8 form other than an RFC 3986 unreserved character
 (letters, digits, `-`, `.`, `_` and `~`) is written as `%XX`. For example, the key `["P 1/a", 1]` of
 `/api/assignments` gives `/api/assignments/P%201%2Fa/1`.
+
+## 3. Auth
+
+```ballerina
+public isolated function authConfig(http:ListenerAuthConfig[] providers) returns http:ListenerAuthConfig[]|error;
+```
+
+A data service with auth checks its authentication providers at startup with a module-level `check` on
+`authConfig`, so the program stops when the list is empty, with the message
+`The configurable value 'dataserviceAuth' must hold at least one authentication provider.` The providers are returned
+as given otherwise.
+
