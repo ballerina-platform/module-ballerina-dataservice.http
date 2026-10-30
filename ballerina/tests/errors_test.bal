@@ -159,6 +159,7 @@ function testQueryError() {
     dataservice:PageConfig config = {size: 10, maxSize: 10};
     dataservice:Entity entity = {
         name: "Employee",
+        collection: "employees",
         'resource: "employees",
         datastore: dataservice:H2,
         fields: [
