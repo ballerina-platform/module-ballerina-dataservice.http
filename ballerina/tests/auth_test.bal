@@ -30,7 +30,7 @@ function testAuthConfig() returns error? {
     test:assertTrue(empty is error);
     if empty is error {
         test:assertEquals(empty.message(),
-                "The configurable value 'dataserviceAuth' must hold at least one authentication provider.");
+                "The configurable value 'dataserviceConfig.auth' must hold at least one authentication provider.");
     }
 }
 

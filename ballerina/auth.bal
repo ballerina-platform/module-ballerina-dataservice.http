@@ -28,11 +28,11 @@ isolated AuthHandler[] authHandlers = [];
 # Checks the authentication providers that a data service with auth is configured with, and creates the handlers
 # that `authorizeRelation` checks a credential with.
 #
-# + providers - The value of `dataserviceAuth`
+# + providers - The value of `dataserviceConfig.auth`
 # + return - The providers, or an error when there is none
 public isolated function authConfig(http:ListenerAuthConfig[] providers) returns http:ListenerAuthConfig[]|error {
     if providers.length() == 0 {
-        return error("The configurable value 'dataserviceAuth' must hold at least one authentication provider.");
+        return error("The configurable value 'dataserviceConfig.auth' must hold at least one authentication provider.");
     }
     lock {
         authHandlers.removeAll();

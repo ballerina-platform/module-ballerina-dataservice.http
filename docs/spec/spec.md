@@ -128,8 +128,8 @@ public isolated function authorizeRelation(http:Request request, string entity, 
 
 A data service with auth checks its authentication providers at startup with a module-level `check` on
 `authConfig`, so the program stops when the list is empty, with the message
-`The configurable value 'dataserviceAuth' must hold at least one authentication provider.` The providers are returned
-as given otherwise, and `authConfig` creates the listener auth handler of each one:
+`The configurable value 'dataserviceConfig.auth' must hold at least one authentication provider.` The providers are
+returned as given otherwise, and `authConfig` creates the listener auth handler of each one:
 `http:ListenerFileUserStoreBasicAuthHandler`, `http:ListenerLdapUserStoreBasicAuthHandler`,
 `http:ListenerJwtAuthHandler` or `http:ListenerOAuth2Handler`.
 
