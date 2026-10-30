@@ -14,9 +14,19 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import ballerina/auth;
+import ballerina/dataservice;
 import ballerina/http;
+import ballerina/jwt;
+import ballerina/oauth2;
 
-# Checks the authentication providers that a data service with auth is configured with.
+type AuthHandler http:ListenerFileUserStoreBasicAuthHandler|http:ListenerLdapUserStoreBasicAuthHandler
+    |http:ListenerJwtAuthHandler|http:ListenerOAuth2Handler;
+
+isolated AuthHandler[] authHandlers = [];
+
+# Checks the authentication providers that a data service with auth is configured with, and creates the handlers
+# that `authorizeRelation` checks a credential with.
 #
 # + providers - The value of `dataserviceAuth`
 # + return - The providers, or an error when there is none
@@ -24,5 +34,76 @@ public isolated function authConfig(http:ListenerAuthConfig[] providers) returns
     if providers.length() == 0 {
         return error("The configurable value 'dataserviceAuth' must hold at least one authentication provider.");
     }
+    lock {
+        authHandlers.removeAll();
+    }
+    foreach http:ListenerAuthConfig provider in providers {
+        AuthHandler handler;
+        if provider is http:FileUserStoreConfigWithScopes {
+            handler = new http:ListenerFileUserStoreBasicAuthHandler(provider.fileUserStoreConfig);
+        } else if provider is http:LdapUserStoreConfigWithScopes {
+            handler = new http:ListenerLdapUserStoreBasicAuthHandler(provider.ldapUserStoreConfig.cloneReadOnly());
+        } else if provider is http:JwtValidatorConfigWithScopes {
+            handler = new http:ListenerJwtAuthHandler(provider.jwtValidatorConfig.cloneReadOnly());
+        } else {
+            handler = new http:ListenerOAuth2Handler(provider.oauth2IntrospectionConfig.cloneReadOnly());
+        }
+        lock {
+            authHandlers.push(handler);
+        }
+    }
     return providers;
+}
+
+# Checks that the caller may read a related entity, for a relation whose `read` scopes the entity's do not cover.
+#
+# + request - The request
+# + entity - The name of the entity
+# + relation - The relation field
+# + target - The name of the related entity
+# + scopes - The `read` scopes of the related entity
+# + return - `Forbidden` when the request's credential holds none of the scopes, or `()`
+public isolated function authorizeRelation(http:Request request, string entity, string relation, string target,
+        string[] scopes) returns Forbidden? {
+    int count;
+    lock {
+        count = authHandlers.length();
+    }
+    // The handlers are tried in the order of the providers, as `ballerina/http` does, and the first that
+    // authenticates the credential decides.
+    foreach int i in 0 ..< count {
+        AuthHandler handler;
+        lock {
+            handler = authHandlers[i];
+        }
+        http:Forbidden? refused = ();
+        if handler is http:ListenerFileUserStoreBasicAuthHandler {
+            auth:UserDetails|http:Unauthorized user = handler.authenticate(request);
+            if user is http:Unauthorized {
+                continue;
+            }
+            refused = handler.authorize(user, scopes);
+        } else if handler is http:ListenerLdapUserStoreBasicAuthHandler {
+            auth:UserDetails|http:Unauthorized user = handler->authenticate(request);
+            if user is http:Unauthorized {
+                continue;
+            }
+            refused = handler->authorize(user, scopes);
+        } else if handler is http:ListenerJwtAuthHandler {
+            jwt:Payload|http:Unauthorized payload = handler.authenticate(request);
+            if payload is http:Unauthorized {
+                continue;
+            }
+            // `jwt:Payload` is an open record, so the check above does not narrow `payload`.
+            refused = handler.authorize(<jwt:Payload>payload, scopes);
+        } else if handler is http:ListenerOAuth2Handler {
+            oauth2:IntrospectionResponse|http:Unauthorized|http:Forbidden result = handler->authorize(request, scopes);
+            if result is http:Unauthorized {
+                continue;
+            }
+            refused = result is http:Forbidden ? result : ();
+        }
+        return refused is () ? () : {body: dataservice:forbidden(entity, relation, target)};
+    }
+    return {body: dataservice:forbidden(entity, relation, target)};
 }

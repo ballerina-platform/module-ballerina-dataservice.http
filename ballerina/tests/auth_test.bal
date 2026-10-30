@@ -16,7 +16,11 @@
 
 import ballerina/dataservice;
 import ballerina/http;
+import ballerina/jwt;
+import ballerina/lang.array;
 import ballerina/test;
+
+const JWT_SECRET = "dataservice-test-secret";
 
 @test:Config
 function testAuthConfig() returns error? {
@@ -32,7 +36,51 @@ function testAuthConfig() returns error? {
 
 @test:Config
 function testForbiddenStatus() {
-    Forbidden response = {body: dataservice:forbidden("Employee", "department")};
+    Forbidden response = {body: dataservice:forbidden("Employee", "department", "Department")};
     test:assertEquals(response.status.code, 403);
     test:assertEquals(response.body.code, dataservice:FORBIDDEN);
+}
+
+@test:Config {dependsOn: [testAuthConfig]}
+function testAuthorizeRelation() returns error? {
+    _ = check authConfig([
+        {fileUserStoreConfig: {}},
+        {jwtValidatorConfig: {issuer: "dataservice", signatureConfig: {secret: JWT_SECRET}}}
+    ]);
+    test:assertEquals(authorizeRelation(basic("reader", "reader-pass"), "Employee", "department", "Department",
+            ["departments:read"]), ());
+    test:assertEquals(authorizeRelation(check bearer("departments:read"), "Employee", "department", "Department",
+            ["hr:read", "departments:read"]), ());
+    assertForbidden(authorizeRelation(basic("guest", "guest-pass"), "Employee", "department", "Department",
+            ["departments:read"]));
+    assertForbidden(authorizeRelation(check bearer("employees:read"), "Employee", "department", "Department",
+            ["departments:read"]));
+    assertForbidden(authorizeRelation(basic("reader", "wrong"), "Employee", "department", "Department",
+            ["departments:read"]));
+    assertForbidden(authorizeRelation(new, "Employee", "department", "Department", ["departments:read"]));
+}
+
+function assertForbidden(Forbidden? response) {
+    if response is () {
+        test:assertFail("expected Forbidden");
+    }
+    test:assertEquals(response.body, dataservice:forbidden("Employee", "department", "Department"));
+}
+
+function basic(string username, string password) returns http:Request {
+    http:Request request = new;
+    request.setHeader("Authorization", "Basic " + array:toBase64(string `${username}:${password}`.toBytes()));
+    return request;
+}
+
+function bearer(string scope) returns http:Request|error {
+    string token = check jwt:issue({
+        issuer: "dataservice",
+        username: "caller",
+        customClaims: {scope},
+        signatureConfig: {algorithm: jwt:HS256, config: JWT_SECRET}
+    });
+    http:Request request = new;
+    request.setHeader("Authorization", "Bearer " + token);
+    return request;
 }

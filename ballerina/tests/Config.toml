@@ -1,0 +1,8 @@
+[[ballerina.auth.users]]
+username = "reader"
+password = "reader-pass"
+scopes = ["departments:read"]
+
+[[ballerina.auth.users]]
+username = "guest"
+password = "guest-pass"

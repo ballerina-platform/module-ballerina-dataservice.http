@@ -42,7 +42,7 @@ record.
 | `Conflict` | `http:Conflict` | `409` | `CONFLICT` | `persist:AlreadyExistsError` |
 | `ConstraintViolation` | `http:Conflict` | `409` | `CONSTRAINT_VIOLATION` | `persist:ConstraintViolationError` |
 | `InvalidInput` | `http:BadRequest` | `400` | `INVALID_INPUT` | A date, time or `byte[]` value that does not parse |
-| `Forbidden` | `http:Forbidden` | `403` | `FORBIDDEN` | Get related or a relation in `fields` whose `read` scopes the entity's do not cover, built with `dataservice:forbidden` |
+| `Forbidden` | `http:Forbidden` | `403` | `FORBIDDEN` | Get related or a relation in `fields`, when the caller holds no `read` scope of the related entity; returned by `authorizeRelation` |
 | `InternalError` | `http:InternalServerError` | `500` | `INTERNAL` | Any other error |
 
 ```ballerina
@@ -122,10 +122,25 @@ percent-encoded as a path segment: every byte of its UTF-8 form other than an RF
 
 ```ballerina
 public isolated function authConfig(http:ListenerAuthConfig[] providers) returns http:ListenerAuthConfig[]|error;
+public isolated function authorizeRelation(http:Request request, string entity, string relation, string target,
+        string[] scopes) returns Forbidden?;
 ```
 
 A data service with auth checks its authentication providers at startup with a module-level `check` on
 `authConfig`, so the program stops when the list is empty, with the message
 `The configurable value 'dataserviceAuth' must hold at least one authentication provider.` The providers are returned
-as given otherwise.
+as given otherwise, and `authConfig` creates the listener auth handler of each one:
+`http:ListenerFileUserStoreBasicAuthHandler`, `http:ListenerLdapUserStoreBasicAuthHandler`,
+`http:ListenerJwtAuthHandler` or `http:ListenerOAuth2Handler`.
+
+`authorizeRelation` checks a relation whose related entity's `read` scopes the entity's do not cover. A resource that
+reads such a relation, by get related or in `fields`, calls it before reading. It tries the handlers in the order of
+the providers, as `ballerina/http` does, and the first that authenticates the request's credential decides with its
+`authorize` against `scopes`, the related entity's `read` scopes. It returns `Forbidden`, with the body of
+`dataservice:forbidden`, when that handler refuses or when no handler authenticates the credential, and `()`
+otherwise.
+
+`ballerina/http` has already checked the credential before the resource runs, so this is a second check: a JWT
+signature is verified again unless the provider's cache is configured, an OAuth2 token is introspected again unless
+its cache is configured, and an LDAP user is looked up again.
 

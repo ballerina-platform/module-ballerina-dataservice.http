@@ -49,7 +49,8 @@ public type ConstraintViolation record {|
     dataservice:DataserviceError body;
 |};
 
-# The response to get related, or a relation in `fields`, whose `read` scopes the entity's do not cover.
+# The response to get related, or a relation in `fields`, when the caller holds no `read` scope of the related
+# entity.
 #
 # + body - The error body, with the code `FORBIDDEN`
 public type Forbidden record {|
