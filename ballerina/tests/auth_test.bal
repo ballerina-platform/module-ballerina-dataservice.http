@@ -60,6 +60,15 @@ function testAuthorizeRelation() returns error? {
     assertForbidden(authorizeRelation(new, "Employee", "department", "Department", ["departments:read"]));
 }
 
+@test:Config {dependsOn: [testAuthorizeRelation]}
+function testHoldsScope() returns error? {
+    test:assertTrue(holdsScope(basic("reader", "reader-pass"), ["hr:read", "departments:read"]));
+    test:assertTrue(holdsScope(check bearer("departments:read"), ["departments:read"]));
+    test:assertFalse(holdsScope(basic("guest", "guest-pass"), ["departments:read"]));
+    test:assertFalse(holdsScope(basic("reader", "wrong"), ["departments:read"]));
+    test:assertFalse(holdsScope(new, ["departments:read"]));
+}
+
 function assertForbidden(Forbidden? response) {
     if response is () {
         test:assertFail("expected Forbidden");

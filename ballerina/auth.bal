@@ -26,7 +26,7 @@ type AuthHandler http:ListenerFileUserStoreBasicAuthHandler|http:ListenerLdapUse
 isolated AuthHandler[] authHandlers = [];
 
 # Checks the authentication providers that a data service with auth is configured with, and creates the handlers
-# that `authorizeRelation` checks a credential with.
+# that `authorizeRelation` and `holdsScope` check a credential with.
 #
 # + providers - The value of `dataserviceConfig.auth`
 # + return - The providers, or an error when there is none
@@ -65,6 +65,15 @@ public isolated function authConfig(http:ListenerAuthConfig[] providers) returns
 # + return - `Forbidden` when the request's credential holds none of the scopes, or `()`
 public isolated function authorizeRelation(http:Request request, string entity, string relation, string target,
         string[] scopes) returns Forbidden? {
+    return holdsScope(request, scopes) ? () : {body: dataservice:forbidden(entity, relation, target)};
+}
+
+# Tells whether the request's credential holds one of the scopes, as the service's authentication providers check it.
+#
+# + request - The request
+# + scopes - The scopes
+# + return - Whether the credential holds one of them; `false` when no provider authenticates it
+public isolated function holdsScope(http:Request request, string[] scopes) returns boolean {
     int count;
     lock {
         count = authHandlers.length();
@@ -76,34 +85,33 @@ public isolated function authorizeRelation(http:Request request, string entity, 
         lock {
             handler = authHandlers[i];
         }
-        http:Forbidden? refused = ();
         if handler is http:ListenerFileUserStoreBasicAuthHandler {
             auth:UserDetails|http:Unauthorized user = handler.authenticate(request);
             if user is http:Unauthorized {
                 continue;
             }
-            refused = handler.authorize(user, scopes);
+            return handler.authorize(user, scopes) is ();
         } else if handler is http:ListenerLdapUserStoreBasicAuthHandler {
             auth:UserDetails|http:Unauthorized user = handler->authenticate(request);
             if user is http:Unauthorized {
                 continue;
             }
-            refused = handler->authorize(user, scopes);
+            http:Forbidden? refused = handler->authorize(user, scopes);
+            return refused is ();
         } else if handler is http:ListenerJwtAuthHandler {
             jwt:Payload|http:Unauthorized payload = handler.authenticate(request);
             if payload is http:Unauthorized {
                 continue;
             }
             // `jwt:Payload` is an open record, so the check above does not narrow `payload`.
-            refused = handler.authorize(<jwt:Payload>payload, scopes);
+            return handler.authorize(<jwt:Payload>payload, scopes) is ();
         } else if handler is http:ListenerOAuth2Handler {
             oauth2:IntrospectionResponse|http:Unauthorized|http:Forbidden result = handler->authorize(request, scopes);
             if result is http:Unauthorized {
                 continue;
             }
-            refused = result is http:Forbidden ? result : ();
+            return result !is http:Forbidden;
         }
-        return refused is () ? () : {body: dataservice:forbidden(entity, relation, target)};
     }
-    return {body: dataservice:forbidden(entity, relation, target)};
+    return false;
 }

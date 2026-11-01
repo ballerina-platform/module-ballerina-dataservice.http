@@ -124,6 +124,7 @@ percent-encoded as a path segment: every byte of its UTF-8 form other than an RF
 public isolated function authConfig(http:ListenerAuthConfig[] providers) returns http:ListenerAuthConfig[]|error;
 public isolated function authorizeRelation(http:Request request, string entity, string relation, string target,
         string[] scopes) returns Forbidden?;
+public isolated function holdsScope(http:Request request, string[] scopes) returns boolean;
 ```
 
 A data service with auth checks its authentication providers at startup with a module-level `check` on
@@ -139,6 +140,9 @@ the providers, as `ballerina/http` does, and the first that authenticates the re
 `authorize` against `scopes`, the related entity's `read` scopes. It returns `Forbidden`, with the body of
 `dataservice:forbidden`, when that handler refuses or when no handler authenticates the credential, and `()`
 otherwise.
+
+`holdsScope` checks the credential in the same way and tells whether it holds one of `scopes`. Patch and delete call
+it with the entity's `read` scopes when those do not cover the action's, and return no record when it is `false`.
 
 `ballerina/http` has already checked the credential before the resource runs, so this is a second check: a JWT
 signature is verified again unless the provider's cache is configured, an OAuth2 token is introspected again unless
