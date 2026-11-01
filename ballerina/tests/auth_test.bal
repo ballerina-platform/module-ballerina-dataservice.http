@@ -23,14 +23,15 @@ import ballerina/test;
 const JWT_SECRET = "dataservice-test-secret";
 
 @test:Config
-function testAuthConfig() returns error? {
+function testAuthProviders() returns error? {
     http:ListenerAuthConfig[] providers = [{fileUserStoreConfig: {}}];
-    test:assertEquals(check authConfig(providers), providers);
-    http:ListenerAuthConfig[]|error empty = authConfig([]);
+    test:assertEquals(check authProviders(providers), providers);
+    http:ListenerAuthConfig[]|error empty = authProviders([]);
     test:assertTrue(empty is error);
     if empty is error {
         test:assertEquals(empty.message(),
-                "The configurable value 'dataserviceConfig.auth' must hold at least one authentication provider.");
+                "The configurable value 'dataserviceConfig.serviceConfig.auth' must hold at least one " +
+                "authentication provider.");
     }
 }
 
@@ -41,9 +42,9 @@ function testForbiddenStatus() {
     test:assertEquals(response.body.code, dataservice:FORBIDDEN);
 }
 
-@test:Config {dependsOn: [testAuthConfig]}
+@test:Config {dependsOn: [testAuthProviders]}
 function testAuthorizeRelation() returns error? {
-    _ = check authConfig([
+    _ = check authProviders([
         {fileUserStoreConfig: {}},
         {jwtValidatorConfig: {issuer: "dataservice", signatureConfig: {secret: JWT_SECRET}}}
     ]);
@@ -92,4 +93,14 @@ function bearer(string scope) returns http:Request|error {
     http:Request request = new;
     request.setHeader("Authorization", "Bearer " + token);
     return request;
+}
+
+@test:Config
+function testConfigDefaults() {
+    Config config = {};
+    test:assertEquals(config.port, 9090);
+    test:assertEquals(config.pageSize, 100);
+    test:assertEquals(config.serviceConfig.cors.allowOrigins, []);
+    AuthConfig withAuth = {serviceConfig: {auth: [{fileUserStoreConfig: {}}]}};
+    test:assertEquals(withAuth.maxPageSize, 1000);
 }

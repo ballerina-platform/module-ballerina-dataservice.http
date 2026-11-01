@@ -27,6 +27,7 @@ the specification is considered a bug.
     * [1.1. Response types](#11-response-types)
     * [1.2. Functions](#12-functions)
     * [1.3. The error interceptor](#13-the-error-interceptor)
+    * [1.4. Configuration](#14-configuration)
 * [2. `Location`](#2-location)
 * [3. Auth](#3-auth)
 
@@ -126,6 +127,38 @@ answers the errors that `ballerina/http` raises before a resource runs with the 
 The responses that a resource returns, such as `Forbidden` from `authorizeRelation`, are not errors, so the
 interceptor does not change them.
 
+### 1.4. Configuration
+
+```ballerina
+public type ServiceConfig record {|
+    http:CorsConfig cors = {};
+|};
+
+public type AuthServiceConfig record {|
+    *ServiceConfig;
+    http:ListenerAuthConfig[] auth;
+|};
+
+public type Config record {|
+    *dataservice:Config;
+    http:ListenerConfiguration listenerConfig = {};
+    ServiceConfig serviceConfig = {};
+|};
+
+public type AuthConfig record {|
+    *dataservice:Config;
+    http:ListenerConfiguration listenerConfig = {};
+    AuthServiceConfig serviceConfig;
+|};
+```
+
+A generated service declares `configurable dsHttp:Config dataserviceConfig = {};`, or with auth
+`configurable dsHttp:AuthConfig dataserviceConfig = ?;`, and the user sets it in the `[dataserviceConfig]` table of
+`Config.toml`. `Config` includes `dataservice:Config`, the port and page sizes, and adds the listener settings and the
+service's CORS settings. `AuthConfig` adds the authentication providers, which have no default, so the program does
+not start without them. `AuthConfig` does not include `Config`, because the closed `AuthServiceConfig` is not a
+subtype of `ServiceConfig` and cannot override that field.
+
 ## 2. `Location`
 
 ```ballerina
@@ -144,16 +177,17 @@ percent-encoded as a path segment: every byte of its UTF-8 form other than an RF
 ## 3. Auth
 
 ```ballerina
-public isolated function authConfig(http:ListenerAuthConfig[] providers) returns http:ListenerAuthConfig[]|error;
+public isolated function authProviders(http:ListenerAuthConfig[] providers)
+        returns http:ListenerAuthConfig[]|error;
 public isolated function authorizeRelation(http:Request request, string entity, string relation, string target,
         string[] scopes) returns Forbidden?;
 public isolated function holdsScope(http:Request request, string[] scopes) returns boolean;
 ```
 
 A data service with auth checks its authentication providers at startup with a module-level `check` on
-`authConfig`, so the program stops when the list is empty, with the message
-`The configurable value 'dataserviceConfig.auth' must hold at least one authentication provider.` The providers are
-returned as given otherwise, and `authConfig` creates the listener auth handler of each one:
+`authProviders`, so the program stops when the list is empty, with the message
+`The configurable value 'dataserviceConfig.serviceConfig.auth' must hold at least one authentication provider.` The providers are
+returned as given otherwise, and `authProviders` creates the listener auth handler of each one:
 `http:ListenerFileUserStoreBasicAuthHandler`, `http:ListenerLdapUserStoreBasicAuthHandler`,
 `http:ListenerJwtAuthHandler` or `http:ListenerOAuth2Handler`.
 
