@@ -49,8 +49,16 @@ public type ConstraintViolation record {|
     dataservice:DataserviceError body;
 |};
 
-# The response to get related, or a relation in `fields`, when the caller holds no `read` scope of the related
-# entity.
+# The response to a request without a valid credential, answered by `ErrorInterceptor`.
+#
+# + body - The error body, with the code `UNAUTHENTICATED`
+public type Unauthorized record {|
+    *http:Unauthorized;
+    dataservice:DataserviceError body;
+|};
+
+# The response to a caller without a scope of the action, or, for get related or a relation in `fields`, without a
+# `read` scope of the related entity.
 #
 # + body - The error body, with the code `FORBIDDEN`
 public type Forbidden record {|

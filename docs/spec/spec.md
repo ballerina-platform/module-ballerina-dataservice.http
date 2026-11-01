@@ -26,6 +26,7 @@ the specification is considered a bug.
 * [1. Error responses](#1-error-responses)
     * [1.1. Response types](#11-response-types)
     * [1.2. Functions](#12-functions)
+    * [1.3. The error interceptor](#13-the-error-interceptor)
 * [2. `Location`](#2-location)
 * [3. Auth](#3-auth)
 
@@ -42,7 +43,8 @@ record.
 | `Conflict` | `http:Conflict` | `409` | `CONFLICT` | `persist:AlreadyExistsError` |
 | `ConstraintViolation` | `http:Conflict` | `409` | `CONSTRAINT_VIOLATION` | `persist:ConstraintViolationError` |
 | `InvalidInput` | `http:BadRequest` | `400` | `INVALID_INPUT` | A date, time or `byte[]` value that does not parse |
-| `Forbidden` | `http:Forbidden` | `403` | `FORBIDDEN` | Get related or a relation in `fields`, when the caller holds no `read` scope of the related entity; returned by `authorizeRelation` |
+| `Unauthorized` | `http:Unauthorized` | `401` | `UNAUTHENTICATED` | `ballerina/http` auth, through `ErrorInterceptor`; declared so the OpenAPI definition lists it |
+| `Forbidden` | `http:Forbidden` | `403` | `FORBIDDEN` | `ballerina/http` auth when the caller holds no scope of the action, through `ErrorInterceptor`; or get related or a relation in `fields` when the caller holds no `read` scope of the related entity, returned by `authorizeRelation` |
 | `InternalError` | `http:InternalServerError` | `500` | `INTERNAL` | Any other error |
 
 ```ballerina
@@ -52,9 +54,7 @@ public type NotFound record {|
 |};
 ```
 
-The other five types have the same form. Other invalid input, such as a missing field or a path segment that does
-not convert to the key's type, is answered by `ballerina/http` with `400` before the resource runs, so its body is
-the `ballerina/http` default error body.
+The other six types have the same form.
 
 ### 1.2. Functions
 
@@ -102,6 +102,29 @@ does not parse, with the field the conversion error names.
 
 As `dataservice:toErrorBody` defines, the detail of a constraint violation or an internal error is logged and not
 returned to the caller.
+
+### 1.3. The error interceptor
+
+```ballerina
+public isolated service class ErrorInterceptor {
+    *http:ResponseErrorInterceptor;
+}
+```
+
+A generated service is an `http:InterceptableService` whose `createInterceptors` returns an `ErrorInterceptor`. It
+answers the errors that `ballerina/http` raises before a resource runs with the same status and a
+`dataservice:DataserviceError` body:
+
+| Status | `code` | `message` | Raised for |
+|---|---|---|---|
+| `401` | `UNAUTHENTICATED` | `dataservice:unauthenticated` | A missing or rejected credential |
+| `403` | `FORBIDDEN` | `dataservice:noScope` | A caller without a scope of the action |
+| `404` | `NOT_FOUND` | `ballerina/http`'s | A path that matches no resource |
+| Other `4xx` | `INVALID_INPUT` | `ballerina/http`'s | Payload, path and query binding, constraint validation, a method the path has no resource for (`405`), an unsupported media type |
+| `5xx` | `INTERNAL` | `An internal error occurred.` | Any other error, logged by `dataservice:toErrorBody` |
+
+The responses that a resource returns, such as `Forbidden` from `authorizeRelation`, are not errors, so the
+interceptor does not change them.
 
 ## 2. `Location`
 
