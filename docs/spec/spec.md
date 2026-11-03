@@ -3,7 +3,7 @@
 _Owners_: @niveathika  
 _Reviewers_:  
 _Created_: 2026/10/22  
-_Updated_: 2026/10/23  
+_Updated_: 2026/11/03  
 _Edition_: Swan Lake
 
 ## Introduction
@@ -73,7 +73,7 @@ public isolated function toCreateError(error err, string entity)
         returns Conflict|ConstraintViolation|InternalError;
 
 public isolated function toUpdateError(error err, string entity, dataservice:KeyValue[] key)
-        returns NotFound|Conflict|ConstraintViolation|InternalError;
+        returns http:NoContent|NotFound|Conflict|ConstraintViolation|InternalError;
 
 public isolated function toDeleteError(error err, string entity, dataservice:KeyValue[] key)
         returns NotFound|ConstraintViolation|InternalError;
@@ -90,13 +90,15 @@ public isolated function toQueryError(dataservice:DataserviceError|dataservice:C
 | `toListError` | Reading many records | `500` |
 | `toGetError` | Reading one record | `404`, `500` |
 | `toCreateError` | Creating records, and reading a created record back by its key | `409` `CONFLICT`, `409` `CONSTRAINT_VIOLATION`, `500` |
-| `toUpdateError` | Updating a record | `404`, `409` `CONFLICT`, `409` `CONSTRAINT_VIOLATION`, `500` |
+| `toUpdateError` | Updating a record | `204`, `404`, `409` `CONFLICT`, `409` `CONSTRAINT_VIOLATION`, `500` |
 | `toDeleteError` | Deleting a record | `404`, `409` `CONSTRAINT_VIOLATION`, `500` |
 | `toInvalidInput` | A request value that does not parse | `400` |
 | `toQueryError` | An invalid query option, from `dataservice:query` or `dataservice:checkFields` | `400` |
 
 An error whose category is not among an operation's responses is answered with `500` and the `INTERNAL` body, and is
-logged. A created record that is not found when it is read back is therefore a `500`, because the create succeeded. `toInvalidInput` builds the message `The field '<field>' of the entity '<Entity>' is not <format>.`, where
+logged. A created record that is not found when it is read back is therefore a `500`, because the create succeeded.
+An update that is saved but cannot be read back, a `persist:ReadBackError`, is answered with `204` and no body, and the
+error is logged. `toInvalidInput` builds the message `The field '<field>' of the entity '<Entity>' is not <format>.`, where
 `<format>` is the `format` of the conversion error: `an ISO 8601 date`, `an ISO 8601 time`, `an ISO 8601 date-time`
 or `a base64 string`. `toQueryError` returns the error body as it is, and builds the same message for a filter value that
 does not parse, with the field the conversion error names.

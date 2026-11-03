@@ -15,6 +15,7 @@
 // under the License.
 
 import ballerina/dataservice;
+import ballerina/http;
 import ballerina/persist;
 import ballerina/test;
 
@@ -92,9 +93,8 @@ function testCreateErrorInternal() {
 
 @test:Config
 function testUpdateErrorConstraintViolation() {
-    NotFound|Conflict|ConstraintViolation|InternalError response =
-        toUpdateError(error persist:ConstraintViolationError("FK_1 violated"), "Employee", [1]);
-    test:assertTrue(response is ConstraintViolation);
+    ConstraintViolation response =
+        <ConstraintViolation>toUpdateError(error persist:ConstraintViolationError("FK_1 violated"), "Employee", [1]);
     test:assertEquals(response.body, {
         code: dataservice:CONSTRAINT_VIOLATION,
         message: "The operation violates a constraint of the entity 'Employee'."
@@ -108,10 +108,15 @@ function testUpdateErrorNotFound() {
 
 @test:Config
 function testUpdateErrorConflict() {
-    NotFound|Conflict|ConstraintViolation|InternalError response =
-        toUpdateError(error persist:AlreadyExistsError("exists"), "Employee", [1]);
-    test:assertTrue(response is Conflict);
+    Conflict response = <Conflict>toUpdateError(error persist:AlreadyExistsError("exists"), "Employee", [1]);
     test:assertEquals(response.body.code, dataservice:CONFLICT);
+}
+
+@test:Config
+function testUpdateErrorReadBack() {
+    error cause = error persist:Error("connection reset");
+    test:assertTrue(toUpdateError(error persist:ReadBackError("not read back", cause), "Employee", [1])
+            is http:NoContent);
 }
 
 @test:Config

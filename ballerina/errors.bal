@@ -16,6 +16,8 @@
 
 import ballerina/dataservice;
 import ballerina/http;
+import ballerina/log;
+import ballerina/persist;
 
 # The response to a request for a record that does not exist.
 #
@@ -112,14 +114,19 @@ public isolated function toCreateError(error err, string entity)
     return toInternalError(err, body);
 }
 
-# Maps an error from updating a record to its response.
+# Maps an error from updating a record to its response. An update that is saved but cannot be read back has no
+# record.
 #
 # + err - The error the persist client returned
 # + entity - The name of the entity
 # + key - The values of the record's key fields, in key order
-# + return - The `404`, `409` or `500` response
+# + return - The `204`, `404`, `409` or `500` response
 public isolated function toUpdateError(error err, string entity, dataservice:KeyValue[] key)
-        returns NotFound|Conflict|ConstraintViolation|InternalError {
+        returns http:NoContent|NotFound|Conflict|ConstraintViolation|InternalError {
+    if err is persist:ReadBackError {
+        log:printError("A data service update was saved but could not be read back.", 'error = err, entity = entity);
+        return http:NO_CONTENT;
+    }
     dataservice:DataserviceError body = dataservice:toErrorBody(err, entity, key);
     match body.code {
         dataservice:NOT_FOUND => {
