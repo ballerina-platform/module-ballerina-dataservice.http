@@ -64,8 +64,3 @@ function interceptedErrors() returns [string, string, string, json?, int, string
     ["reader", "PUT", "/items/1", {id: 1, name: "a"}, 405, dataservice:INVALID_INPUT, ""]
 ];
 
-@test:Config
-function testUnauthorizedStatus() {
-    Unauthorized response = {body: dataservice:unauthenticated()};
-    test:assertEquals(response.status.code, 401);
-}

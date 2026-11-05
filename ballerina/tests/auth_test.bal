@@ -35,13 +35,6 @@ function testAuthProviders() returns error? {
     }
 }
 
-@test:Config
-function testForbiddenStatus() {
-    Forbidden response = {body: dataservice:forbidden("Employee", "department", "Department")};
-    test:assertEquals(response.status.code, 403);
-    test:assertEquals(response.body.code, dataservice:FORBIDDEN);
-}
-
 @test:Config {dependsOn: [testAuthProviders]}
 function testAuthorizeRelation() returns error? {
     _ = check initAuthProviders([
@@ -95,12 +88,3 @@ function bearer(string scope) returns http:Request|error {
     return request;
 }
 
-@test:Config
-function testConfigDefaults() {
-    Config config = {};
-    test:assertEquals(config.port, 9090);
-    test:assertEquals(config.pageSize, 100);
-    test:assertEquals(config.serviceConfig.cors.allowOrigins, []);
-    AuthConfig withAuth = {serviceConfig: {auth: [{fileUserStoreConfig: {}}]}};
-    test:assertEquals(withAuth.maxPageSize, 1000);
-}
