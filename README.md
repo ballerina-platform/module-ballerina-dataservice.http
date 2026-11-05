@@ -1,6 +1,9 @@
 # Ballerina Data Service HTTP Library
 
 [![Build](https://github.com/ballerina-platform/module-ballerina-dataservice.http/actions/workflows/build-timestamped-master.yml/badge.svg)](https://github.com/ballerina-platform/module-ballerina-dataservice.http/actions/workflows/build-timestamped-master.yml)
+[![codecov](https://codecov.io/gh/ballerina-platform/module-ballerina-dataservice.http/branch/main/graph/badge.svg)](https://codecov.io/gh/ballerina-platform/module-ballerina-dataservice.http)
+[![Security Scan](https://github.com/ballerina-platform/module-ballerina-dataservice.http/actions/workflows/security-scan.yml/badge.svg)](https://github.com/ballerina-platform/module-ballerina-dataservice.http/actions/workflows/security-scan.yml)
+[![GraalVM Check](https://github.com/ballerina-platform/module-ballerina-dataservice.http/actions/workflows/build-with-bal-test-graalvm.yml/badge.svg)](https://github.com/ballerina-platform/module-ballerina-dataservice.http/actions/workflows/build-with-bal-test-graalvm.yml)
 [![GitHub Last Commit](https://img.shields.io/github/last-commit/ballerina-platform/module-ballerina-dataservice.http.svg)](https://github.com/ballerina-platform/module-ballerina-dataservice.http/commits/main)
 [![GitHub Issues](https://img.shields.io/github/issues/ballerina-platform/ballerina-library/module/dataservice.http.svg?label=Open%20Issues)](https://github.com/ballerina-platform/ballerina-library/labels/module%2Fdataservice.http)
 
