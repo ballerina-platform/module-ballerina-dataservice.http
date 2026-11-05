@@ -26,11 +26,11 @@ type AuthHandler http:ListenerFileUserStoreBasicAuthHandler|http:ListenerLdapUse
 isolated AuthHandler[] authHandlers = [];
 
 # Checks the authentication providers that a data service with auth is configured with, and creates the handlers
-# that `authorizeRelation` and `holdsScope` check a credential with.
+# that `checkRelationScopes` and `hasScope` check a credential with.
 #
 # + providers - The value of `dataserviceConfig.serviceConfig.auth`
 # + return - The providers, or an error when there is none
-public isolated function authProviders(http:ListenerAuthConfig[] providers)
+public isolated function initAuthProviders(http:ListenerAuthConfig[] providers)
         returns http:ListenerAuthConfig[]|error {
     if providers.length() == 0 {
         return error("The configurable value 'dataserviceConfig.serviceConfig.auth' must hold at least one " +
@@ -65,9 +65,9 @@ public isolated function authProviders(http:ListenerAuthConfig[] providers)
 # + target - The name of the related entity
 # + scopes - The `read` scopes of the related entity
 # + return - `Forbidden` when the request's credential holds none of the scopes, or `()`
-public isolated function authorizeRelation(http:Request request, string entity, string relation, string target,
+public isolated function checkRelationScopes(http:Request request, string entity, string relation, string target,
         string[] scopes) returns Forbidden? {
-    return holdsScope(request, scopes) ? () : {body: dataservice:forbidden(entity, relation, target)};
+    return hasScope(request, scopes) ? () : {body: dataservice:forbidden(entity, relation, target)};
 }
 
 # Tells whether the request's credential holds one of the scopes, as the service's authentication providers check it.
@@ -75,7 +75,7 @@ public isolated function authorizeRelation(http:Request request, string entity, 
 # + request - The request
 # + scopes - The scopes
 # + return - Whether the credential holds one of them; `false` when no provider authenticates it
-public isolated function holdsScope(http:Request request, string[] scopes) returns boolean {
+public isolated function hasScope(http:Request request, string[] scopes) returns boolean {
     int count;
     lock {
         count = authHandlers.length();

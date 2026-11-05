@@ -45,7 +45,7 @@ record.
 | `ConstraintViolation` | `http:Conflict` | `409` | `CONSTRAINT_VIOLATION` | `persist:ConstraintViolationError` |
 | `InvalidInput` | `http:BadRequest` | `400` | `INVALID_INPUT` | A date, time or `byte[]` value that does not parse |
 | `Unauthorized` | `http:Unauthorized` | `401` | `UNAUTHENTICATED` | `ballerina/http` auth, through `ErrorInterceptor`; declared so the OpenAPI definition lists it |
-| `Forbidden` | `http:Forbidden` | `403` | `FORBIDDEN` | `ballerina/http` auth when the caller holds no scope of the action, through `ErrorInterceptor`; or get related or a relation in `fields` when the caller holds no `read` scope of the related entity, returned by `authorizeRelation` |
+| `Forbidden` | `http:Forbidden` | `403` | `FORBIDDEN` | `ballerina/http` auth when the caller holds no scope of the action, through `ErrorInterceptor`; or get related or a relation in `fields` when the caller holds no `read` scope of the related entity, returned by `checkRelationScopes` |
 | `InternalError` | `http:InternalServerError` | `500` | `INTERNAL` | Any other error |
 
 ```ballerina
@@ -93,7 +93,7 @@ public isolated function toQueryError(dataservice:DataserviceError|dataservice:C
 | `toUpdateError` | Updating a record | `204`, `404`, `409` `CONFLICT`, `409` `CONSTRAINT_VIOLATION`, `500` |
 | `toDeleteError` | Deleting a record | `404`, `409` `CONSTRAINT_VIOLATION`, `500` |
 | `toInvalidInput` | A request value that does not parse | `400` |
-| `toQueryError` | An invalid query option, from `dataservice:query` or `dataservice:checkFields` | `400` |
+| `toQueryError` | An invalid query option, from `dataservice:toQuery` or `dataservice:checkFields` | `400` |
 
 An error whose category is not among an operation's responses is answered with `500` and the `INTERNAL` body, and is
 logged. A created record that is not found when it is read back is therefore a `500`, because the create succeeded.
@@ -126,7 +126,7 @@ answers the errors that `ballerina/http` raises before a resource runs with the 
 | Other `4xx` | `INVALID_INPUT` | `ballerina/http`'s | Payload, path and query binding, constraint validation, a method the path has no resource for (`405`), an unsupported media type |
 | `5xx` | `INTERNAL` | `An internal error occurred.` | Any other error, logged by `dataservice:toErrorBody` |
 
-The responses that a resource returns, such as `Forbidden` from `authorizeRelation`, are not errors, so the
+The responses that a resource returns, such as `Forbidden` from `checkRelationScopes`, are not errors, so the
 interceptor does not change them.
 
 ### 1.4. Configuration
@@ -164,10 +164,10 @@ subtype of `ServiceConfig` and cannot override that field.
 ## 2. `Location`
 
 ```ballerina
-public isolated function buildLocation(string path, dataservice:KeyValue[] key) returns string;
+public isolated function toLocation(string path, dataservice:KeyValue[] key) returns string;
 ```
 
-`buildLocation` returns the path of a created record: `path` followed by one segment per key value, in key order. `path`
+`toLocation` returns the path of a created record: `path` followed by one segment per key value, in key order. `path`
 is the path of the entity's collection, including the service's base path, such as `/api/employees`, or
 `/employees` when the base path is `/`.
 
@@ -179,28 +179,28 @@ percent-encoded as a path segment: every byte of its UTF-8 form other than an RF
 ## 3. Auth
 
 ```ballerina
-public isolated function authProviders(http:ListenerAuthConfig[] providers)
+public isolated function initAuthProviders(http:ListenerAuthConfig[] providers)
         returns http:ListenerAuthConfig[]|error;
-public isolated function authorizeRelation(http:Request request, string entity, string relation, string target,
+public isolated function checkRelationScopes(http:Request request, string entity, string relation, string target,
         string[] scopes) returns Forbidden?;
-public isolated function holdsScope(http:Request request, string[] scopes) returns boolean;
+public isolated function hasScope(http:Request request, string[] scopes) returns boolean;
 ```
 
 A data service with auth checks its authentication providers at startup with a module-level `check` on
-`authProviders`, so the program stops when the list is empty, with the message
+`initAuthProviders`, so the program stops when the list is empty, with the message
 `The configurable value 'dataserviceConfig.serviceConfig.auth' must hold at least one authentication provider.` The providers are
-returned as given otherwise, and `authProviders` creates the listener auth handler of each one:
+returned as given otherwise, and `initAuthProviders` creates the listener auth handler of each one:
 `http:ListenerFileUserStoreBasicAuthHandler`, `http:ListenerLdapUserStoreBasicAuthHandler`,
 `http:ListenerJwtAuthHandler` or `http:ListenerOAuth2Handler`.
 
-`authorizeRelation` checks a relation whose related entity's `read` scopes the entity's do not cover. A resource that
+`checkRelationScopes` checks a relation whose related entity's `read` scopes the entity's do not cover. A resource that
 reads such a relation, by get related or in `fields`, calls it before reading. It tries the handlers in the order of
 the providers, as `ballerina/http` does, and the first that authenticates the request's credential decides with its
 `authorize` against `scopes`, the related entity's `read` scopes. It returns `Forbidden`, with the body of
 `dataservice:forbidden`, when that handler refuses or when no handler authenticates the credential, and `()`
 otherwise.
 
-`holdsScope` checks the credential in the same way and tells whether it holds one of `scopes`. Patch and delete call
+`hasScope` checks the credential in the same way and tells whether it holds one of `scopes`. Patch and delete call
 it with the entity's `read` scopes when those do not cover the action's, and return no record when it is `false`.
 
 `ballerina/http` has already checked the credential before the resource runs, so this is a second check: a JWT

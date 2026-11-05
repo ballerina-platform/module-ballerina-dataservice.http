@@ -178,7 +178,7 @@ public isolated function toInvalidInput(dataservice:ConversionError err, string 
 
 # Maps an invalid query option to the `400` response.
 #
-# + err - The error body, or the conversion error of a filter value, from `dataservice:query` or `dataservice:checkFields`
+# + err - The error body, or the conversion error of a filter value, from `dataservice:toQuery` or `dataservice:checkFields`
 # + entity - The name of the entity
 # + return - The `400` response
 public isolated function toQueryError(dataservice:DataserviceError|dataservice:ConversionError err, string entity)

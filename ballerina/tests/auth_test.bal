@@ -25,8 +25,8 @@ const JWT_SECRET = "dataservice-test-secret";
 @test:Config
 function testAuthProviders() returns error? {
     http:ListenerAuthConfig[] providers = [{fileUserStoreConfig: {}}];
-    test:assertEquals(check authProviders(providers), providers);
-    http:ListenerAuthConfig[]|error empty = authProviders([]);
+    test:assertEquals(check initAuthProviders(providers), providers);
+    http:ListenerAuthConfig[]|error empty = initAuthProviders([]);
     test:assertTrue(empty is error);
     if empty is error {
         test:assertEquals(empty.message(),
@@ -44,30 +44,30 @@ function testForbiddenStatus() {
 
 @test:Config {dependsOn: [testAuthProviders]}
 function testAuthorizeRelation() returns error? {
-    _ = check authProviders([
+    _ = check initAuthProviders([
         {fileUserStoreConfig: {}},
         {jwtValidatorConfig: {issuer: "dataservice", signatureConfig: {secret: JWT_SECRET}}}
     ]);
-    test:assertEquals(authorizeRelation(basic("reader", "reader-pass"), "Employee", "department", "Department",
+    test:assertEquals(checkRelationScopes(basic("reader", "reader-pass"), "Employee", "department", "Department",
             ["departments:read"]), ());
-    test:assertEquals(authorizeRelation(check bearer("departments:read"), "Employee", "department", "Department",
+    test:assertEquals(checkRelationScopes(check bearer("departments:read"), "Employee", "department", "Department",
             ["hr:read", "departments:read"]), ());
-    assertForbidden(authorizeRelation(basic("guest", "guest-pass"), "Employee", "department", "Department",
+    assertForbidden(checkRelationScopes(basic("guest", "guest-pass"), "Employee", "department", "Department",
             ["departments:read"]));
-    assertForbidden(authorizeRelation(check bearer("employees:read"), "Employee", "department", "Department",
+    assertForbidden(checkRelationScopes(check bearer("employees:read"), "Employee", "department", "Department",
             ["departments:read"]));
-    assertForbidden(authorizeRelation(basic("reader", "wrong"), "Employee", "department", "Department",
+    assertForbidden(checkRelationScopes(basic("reader", "wrong"), "Employee", "department", "Department",
             ["departments:read"]));
-    assertForbidden(authorizeRelation(new, "Employee", "department", "Department", ["departments:read"]));
+    assertForbidden(checkRelationScopes(new, "Employee", "department", "Department", ["departments:read"]));
 }
 
 @test:Config {dependsOn: [testAuthorizeRelation]}
 function testHoldsScope() returns error? {
-    test:assertTrue(holdsScope(basic("reader", "reader-pass"), ["hr:read", "departments:read"]));
-    test:assertTrue(holdsScope(check bearer("departments:read"), ["departments:read"]));
-    test:assertFalse(holdsScope(basic("guest", "guest-pass"), ["departments:read"]));
-    test:assertFalse(holdsScope(basic("reader", "wrong"), ["departments:read"]));
-    test:assertFalse(holdsScope(new, ["departments:read"]));
+    test:assertTrue(hasScope(basic("reader", "reader-pass"), ["hr:read", "departments:read"]));
+    test:assertTrue(hasScope(check bearer("departments:read"), ["departments:read"]));
+    test:assertFalse(hasScope(basic("guest", "guest-pass"), ["departments:read"]));
+    test:assertFalse(hasScope(basic("reader", "wrong"), ["departments:read"]));
+    test:assertFalse(hasScope(new, ["departments:read"]));
 }
 
 function assertForbidden(Forbidden? response) {

@@ -173,13 +173,13 @@ function testQueryError() {
         ]
     };
     dataservice:Query|dataservice:DataserviceError|dataservice:ConversionError result =
-        dataservice:query(entity, config, {hiredOn: {eq: "2024-1-1"}});
+        dataservice:toQuery(entity, config, {hiredOn: {eq: "2024-1-1"}});
     if result is dataservice:Query {
         test:assertFail("Expected an error");
     }
     InvalidInput response = toQueryError(result, "Employee");
     test:assertEquals(response.body.message, "The field 'hiredOn' of the entity 'Employee' is not an ISO 8601 date.");
-    result = dataservice:query(entity, config, size = 0);
+    result = dataservice:toQuery(entity, config, size = 0);
     if result is dataservice:Query {
         test:assertFail("Expected an error");
     }
