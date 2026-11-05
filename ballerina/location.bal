@@ -31,9 +31,15 @@ public isolated function toLocation(string path, dataservice:KeyValue[] key) ret
 
 isolated function encodeSegment(string segment) returns string {
     string encoded = "";
-    foreach byte b in segment.toBytes() {
-        // An unreserved byte is an ASCII code point, so the conversion cannot fail.
-        encoded += isUnreserved(b) ? checkpanic string:fromCodePointInt(b) : "%" + b.toHexString().toUpperAscii().padZero(2);
+    foreach string:Char char in segment {
+        int codePoint = char.toCodePointInt();
+        if codePoint < 128 && isUnreserved(<byte>codePoint) {
+            encoded += char;
+            continue;
+        }
+        foreach byte b in char.toBytes() {
+            encoded += "%" + b.toHexString().toUpperAscii().padZero(2);
+        }
     }
     return encoded;
 }
