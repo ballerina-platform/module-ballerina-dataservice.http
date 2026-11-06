@@ -101,7 +101,7 @@ A generated service is an `http:InterceptableService`. Its `createInterceptors` 
 | Status | `code` | `message` | Raised for |
 |---|---|---|---|
 | `404` | `NOT_FOUND` | `ballerina/http`'s | A path that matches no resource |
-| Other `4xx` | `INVALID_INPUT` | `ballerina/http`'s | Payload, path and query binding, constraint validation, a method the path has no resource for (`405`), an unsupported media type |
+| Other `4xx` | `INVALID_INPUT` | `ballerina/http`'s | Payload, path and query binding, constraint validation, a method the path has no resource for (`405`) |
 | `5xx` | `INTERNAL` | `An internal error occurred.` | Any other error, logged by `dataservice:toErrorBody` |
 
 The interceptor changes the response in place and returns the next service, so the OpenAPI definition gains no response from it. The responses that a resource or a request interceptor returns, such as `Unauthorized` and `Forbidden`, are not errors, so the interceptor does not change them.
