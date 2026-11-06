@@ -114,3 +114,12 @@ function bearer(string scope) returns string|error {
     });
     return "Bearer " + token;
 }
+
+@test:Config
+function testChallengeOfEachProviderKind() returns error? {
+    http:Client c = check new ("http://localhost:9592/scopes");
+    http:Response response = check c->get("/has?scope=departments:read");
+    test:assertEquals(response.statusCode, 401);
+    test:assertEquals(check response.getHeaders("WWW-Authenticate"),
+            ["Basic realm=\"dataservice\"", "Bearer realm=\"dataservice\""]);
+}

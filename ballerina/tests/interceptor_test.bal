@@ -23,7 +23,8 @@ type Item record {|
     string name;
 |};
 
-final Authenticator itemAuthenticator = check new ([{fileUserStoreConfig: {}}], {"items": {"GET": ["departments:read"]}});
+final Authenticator itemAuthenticator = check new ([{fileUserStoreConfig: {}}], {"items": {"GET": ["departments:read"]}},
+    {allowOrigins: ["https://app.example.com"], allowCredentials: true, exposeHeaders: ["Location"]});
 
 // The interceptors a generated service defines in its own package.
 isolated service class ItemAuthInterceptor {
@@ -44,7 +45,7 @@ isolated service class ItemErrorInterceptor {
     }
 }
 
-@http:ServiceConfig {cors: {allowOrigins: ["https://app.example.com"]}}
+@http:ServiceConfig {cors: {allowOrigins: ["https://app.example.com"], allowCredentials: true, exposeHeaders: ["Location"]}}
 service http:InterceptableService /api on new http:Listener(9591) {
 
     public function createInterceptors() returns [ItemAuthInterceptor, ItemErrorInterceptor] => [new, new];
@@ -103,4 +104,22 @@ function testAllowedRequestReachesTheResource() returns error? {
     test:assertEquals(item, {id: 1, name: "a"});
     Item created = check guestClient->post("/items", {id: 2, name: "b"});
     test:assertEquals(created, {id: 2, name: "b"});
+}
+
+@test:Config
+function testAuthErrorsCarryTheChallengeAndCorsHeaders() returns error? {
+    map<string> origin = {"Origin": "https://app.example.com"};
+    http:Response unauthorized = check anonymousClient->get("/items/1", origin);
+    test:assertEquals(unauthorized.statusCode, 401);
+    test:assertEquals(check unauthorized.getHeader("WWW-Authenticate"), "Basic realm=\"dataservice\"");
+    test:assertEquals(check unauthorized.getHeader("Access-Control-Allow-Origin"), "https://app.example.com");
+    test:assertEquals(check unauthorized.getHeader("Access-Control-Allow-Credentials"), "true");
+    test:assertEquals(check unauthorized.getHeader("Access-Control-Expose-Headers"), "Location");
+    http:Response forbidden = check guestClient->get("/items/1", origin);
+    test:assertEquals(forbidden.statusCode, 403);
+    test:assertEquals(check forbidden.getHeader("Access-Control-Allow-Origin"), "https://app.example.com");
+    test:assertFalse(forbidden.hasHeader("WWW-Authenticate"));
+    http:Response otherOrigin = check anonymousClient->get("/items/1", {"Origin": "https://other.example.com"});
+    test:assertEquals(otherOrigin.statusCode, 401);
+    test:assertFalse(otherOrigin.hasHeader("Access-Control-Allow-Origin"));
 }

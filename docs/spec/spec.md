@@ -161,7 +161,7 @@ A data service with auth checks credentials and scopes with `Authenticator`, fro
 
 ### 6.2. Behaviour
 
-1. A data service with auth creates its `Authenticator` at startup with a module-level `check`, from the configured providers and the scopes of each operation, keyed by the collection and then by the HTTP method. It creates the listener auth handler of each provider: `http:ListenerFileUserStoreBasicAuthHandler`, `http:ListenerLdapUserStoreBasicAuthHandler`, `http:ListenerJwtAuthHandler` or `http:ListenerOAuth2Handler`.
+1. A data service with auth creates its `Authenticator` at startup with a module-level `check`, from the configured providers, the scopes of each operation, keyed by the collection and then by the HTTP method, and the service's CORS settings. It creates the listener auth handler of each provider: `http:ListenerFileUserStoreBasicAuthHandler`, `http:ListenerLdapUserStoreBasicAuthHandler`, `http:ListenerJwtAuthHandler` or `http:ListenerOAuth2Handler`.
 2. The request interceptor's resource, `'default [string... path]`, returns `authorize` with the request context, the request and the path. For each request, `authorize`:
     1. Passes an `OPTIONS` request, such as a CORS preflight, to the next service without a credential.
     2. Tries the handlers in the order of the providers, as `ballerina/http` does, and the first that authenticates the credential decides. When none does, it returns `Unauthorized` with the body of `dataservice:unauthenticated`.
@@ -170,7 +170,8 @@ A data service with auth checks credentials and scopes with `Authenticator`, fro
     5. Returns the next service otherwise.
 3. `checkRelationScopes` checks a relation whose related entity's `read` scopes the entity's do not cover. A resource that reads such a relation, by get related or in `fields`, calls it before reading, with the request context, the entity's name, the relation, the related entity's name and the related entity's `read` scopes. It returns `Forbidden`, with the body of `dataservice:forbidden`, when the caller holds none of the scopes, and `()` otherwise.
 4. `hasScope` returns whether the caller in the request context holds one of the given scopes, and `false` when the request was not authenticated. Patch and delete call it with the entity's `read` scopes when those do not cover the action's, and return no record when it is `false`.
-5. For an OAuth2 provider, a scope is held when it is one of the space-separated values of the introspection response's `scopeKey` claim, as `http:ListenerOAuth2Handler` checks it.
+5. `Unauthorized` carries one `WWW-Authenticate` challenge per kind of provider: `Basic realm="dataservice"` for a file or LDAP user store, and `Bearer realm="dataservice"` for JWT or OAuth2. `ballerina/http` adds CORS headers only to the responses of a resource, so `Unauthorized` and `Forbidden` from `authorize` get them from the CORS settings, as `ballerina/http` sets them for a simple cross-origin request: `Access-Control-Allow-Origin` with the request's origin when it is allowed, and `Access-Control-Allow-Credentials` and `Access-Control-Expose-Headers` when set.
+6. For an OAuth2 provider, a scope is held when it is one of the space-separated values of the introspection response's `scopeKey` claim, as `http:ListenerOAuth2Handler` checks it.
 
 ### 6.3. Errors
 

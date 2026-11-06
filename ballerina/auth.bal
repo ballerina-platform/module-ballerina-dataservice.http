@@ -24,6 +24,9 @@ type AuthHandler http:ListenerFileUserStoreBasicAuthHandler|http:ListenerLdapUse
     |http:ListenerJwtAuthHandler|http:ListenerOAuth2Handler;
 
 const CALLER = "dataservice.http.caller";
+const WWW_AUTHENTICATE = "WWW-Authenticate";
+const BASIC_CHALLENGE = "Basic realm=\"dataservice\"";
+const BEARER_CHALLENGE = "Bearer realm=\"dataservice\"";
 
 # Authenticates each request of a data service with auth and checks the scopes of its operation, before
 # `ballerina/http` dispatches the request and binds its parameters.
@@ -31,19 +34,29 @@ public isolated class Authenticator {
     private final AuthHandler[] handlers = [];
     private final readonly & string[] oauth2ScopeKeys;
     private final readonly & map<map<string[]>> scopes;
+    private final readonly & string[] challenges;
+    private final readonly & http:CorsConfig cors;
 
     # Checks the authentication providers and creates their handlers.
     #
     # + providers - The value of `dataserviceConfig.serviceConfig.auth`
     # + scopes - The scopes of each operation, by collection and then by HTTP method
+    # + cors - The service's CORS settings, applied to the `401` and `403` responses
     # + return - An error when there is no provider
-    public isolated function init(http:ListenerAuthConfig[] providers, map<map<string[]>> scopes) returns error? {
+    public isolated function init(http:ListenerAuthConfig[] providers, map<map<string[]>> scopes,
+            http:CorsConfig cors = {}) returns error? {
         if providers.length() == 0 {
             return error("The configurable value 'dataserviceConfig.serviceConfig.auth' must hold at least one " +
                 "authentication provider.");
         }
         string[] oauth2ScopeKeys = [];
+        string[] challenges = [];
         foreach http:ListenerAuthConfig provider in providers {
+            string challenge = provider is http:FileUserStoreConfigWithScopes|http:LdapUserStoreConfigWithScopes ?
+                BASIC_CHALLENGE : BEARER_CHALLENGE;
+            if challenges.indexOf(challenge) is () {
+                challenges.push(challenge);
+            }
             AuthHandler handler;
             if provider is http:FileUserStoreConfigWithScopes {
                 handler = new http:ListenerFileUserStoreBasicAuthHandler(provider.fileUserStoreConfig);
@@ -62,6 +75,8 @@ public isolated class Authenticator {
         }
         self.oauth2ScopeKeys = oauth2ScopeKeys.cloneReadOnly();
         self.scopes = scopes.cloneReadOnly();
+        self.challenges = challenges.cloneReadOnly();
+        self.cors = cors.cloneReadOnly();
     }
 
     # Authenticates the request, keeps the caller in the request context, and checks that the caller holds a scope
@@ -78,14 +93,44 @@ public isolated class Authenticator {
         }
         Caller? caller = self.authenticate(request);
         if caller is () {
-            return <Unauthorized>{body: dataservice:unauthenticated()};
+            map<string|string[]> headers = self.corsHeaders(request);
+            headers[WWW_AUTHENTICATE] = self.challenges;
+            return <Unauthorized>{headers, body: dataservice:unauthenticated()};
         }
         ctx.set(CALLER, caller);
         string[]? scopes = path.length() == 0 ? () : self.scopes[path[0]][request.method];
         if scopes is string[] && scopes.length() > 0 && !caller.hasScope(scopes) {
-            return <Forbidden>{body: dataservice:noScope()};
+            return <Forbidden>{headers: self.corsHeaders(request), body: dataservice:noScope()};
         }
         return ctx.next();
+    }
+
+    // `ballerina/http` adds the CORS headers only to the responses of a resource, so the responses of the request
+    // interceptor get them here, as `ballerina/http` sets them for a simple cross-origin request.
+    isolated function corsHeaders(http:Request request) returns map<string|string[]> {
+        string|http:HeaderNotFoundError origin = request.getHeader("Origin");
+        if origin is http:HeaderNotFoundError {
+            return {};
+        }
+        string[] origins = from string value in re ` `.split(origin) where value.includes("://") select value;
+        string[] allowed = self.cors.allowOrigins;
+        boolean anyOrigin = allowed.length() == 1 && allowed[0] == "*";
+        if origins.length() == 0 {
+            return {};
+        }
+        foreach string value in origins {
+            if !anyOrigin && allowed.indexOf(value) is () {
+                return {};
+            }
+        }
+        map<string|string[]> headers = {"Access-Control-Allow-Origin": string:'join(" ", ...origins)};
+        if self.cors.allowCredentials {
+            headers["Access-Control-Allow-Credentials"] = "true";
+        }
+        if self.cors.exposeHeaders.length() > 0 {
+            headers["Access-Control-Expose-Headers"] = string:'join(", ", ...self.cors.exposeHeaders);
+        }
+        return headers;
     }
 
     // The handlers are tried in the order of the providers, as `ballerina/http` does, and the first that
