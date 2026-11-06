@@ -69,8 +69,8 @@ Each response type includes its `http` status code record and has the field `bod
 | `Conflict` | `http:Conflict` | `409` | `CONFLICT` | `persist:AlreadyExistsError` |
 | `ConstraintViolation` | `http:Conflict` | `409` | `CONSTRAINT_VIOLATION` | `persist:ConstraintViolationError` |
 | `InvalidInput` | `http:BadRequest` | `400` | `INVALID_INPUT` | A date, time or `byte[]` value that does not parse, or an invalid query option |
-| `Unauthorized` | `http:Unauthorized` | `401` | `UNAUTHENTICATED` | `ballerina/http` auth, through `ErrorInterceptor`; declared so the OpenAPI definition lists it |
-| `Forbidden` | `http:Forbidden` | `403` | `FORBIDDEN` | `ballerina/http` auth when the caller holds no scope of the action, through `ErrorInterceptor`; or get related or a relation in `fields` when the caller holds no `read` scope of the related entity, returned by `checkRelationScopes` |
+| `Unauthorized` | `http:Unauthorized` | `401` | `UNAUTHENTICATED` | `Authenticator`, for a request without a valid credential |
+| `Forbidden` | `http:Forbidden` | `403` | `FORBIDDEN` | `Authenticator`, when the caller holds no scope of the operation; or `checkRelationScopes`, for get related or a relation in `fields` when the caller holds no `read` scope of the related entity |
 | `InternalError` | `http:InternalServerError` | `500` | `INTERNAL` | Any other error |
 
 ### 3.3. Behaviour
@@ -96,17 +96,15 @@ A generated resource declares only the responses its operation can return, so ea
 
 ### 3.4. Errors raised by ballerina/http
 
-A generated service is an `http:InterceptableService` whose `createInterceptors` returns an `ErrorInterceptor`, a response error interceptor. It answers the errors that `ballerina/http` raises before a resource runs with the same status and a `dataservice:DataserviceError` body:
+A generated service is an `http:InterceptableService`. Its `createInterceptors` returns a response error interceptor that the generated code defines in the service's own package, because the OpenAPI definition leaves out an interceptor from another package (ballerina-library#9633), and that calls `setErrorBody`. `setErrorBody` sets the `dataservice:DataserviceError` body, as `application/json`, on the response that `ballerina/http` built for an error raised before a resource runs, keeping its status:
 
 | Status | `code` | `message` | Raised for |
 |---|---|---|---|
-| `401` | `UNAUTHENTICATED` | That of `dataservice:unauthenticated` | A missing or rejected credential |
-| `403` | `FORBIDDEN` | That of `dataservice:noScope` | A caller without a scope of the action |
 | `404` | `NOT_FOUND` | `ballerina/http`'s | A path that matches no resource |
 | Other `4xx` | `INVALID_INPUT` | `ballerina/http`'s | Payload, path and query binding, constraint validation, a method the path has no resource for (`405`), an unsupported media type |
 | `5xx` | `INTERNAL` | `An internal error occurred.` | Any other error, logged by `dataservice:toErrorBody` |
 
-The responses that a resource returns, such as `Forbidden` from `checkRelationScopes`, are not errors, so the interceptor does not change them.
+The interceptor changes the response in place and returns the next service, so the OpenAPI definition gains no response from it. The responses that a resource or a request interceptor returns, such as `Unauthorized` and `Forbidden`, are not errors, so the interceptor does not change them.
 
 ## 4. Configuration
 
@@ -159,33 +157,40 @@ For example, the key `["P 1/a", 1]` of `/api/assignments` gives `/api/assignment
 
 ### 6.1. Description
 
-A data service with auth relies on `ballerina/http` declarative auth for the scopes of each action. This package checks the providers at startup and checks a credential's scopes at runtime where a resource needs a second check: a relation whose related entity has `read` scopes that the entity's do not cover, and the record that patch and delete return.
+A data service with auth checks credentials and scopes with `Authenticator`, from a request interceptor that the generated code defines in the service's own package. A request interceptor runs before `ballerina/http` dispatches the request and binds its parameters, so a request without a valid credential is answered with `401` whatever its path, method or body. `ballerina/http` declarative auth is not used, because it runs inside the resource, after dispatching and binding (ballerina-library#9632).
 
 ### 6.2. Behaviour
 
-1. A data service with auth checks its providers at startup with a module-level `check` on `initAuthProviders`. It returns the providers as given and creates the listener auth handler of each one: `http:ListenerFileUserStoreBasicAuthHandler`, `http:ListenerLdapUserStoreBasicAuthHandler`, `http:ListenerJwtAuthHandler` or `http:ListenerOAuth2Handler`.
-2. `checkRelationScopes` checks a relation whose related entity's `read` scopes the entity's do not cover. A resource that reads such a relation, by get related or in `fields`, calls it before reading, with the entity's name, the relation, the related entity's name and the related entity's `read` scopes.
-    1. It tries the handlers in the order of the providers, as `ballerina/http` does.
-    2. The first handler that authenticates the request's credential decides, with its `authorize` against the scopes.
-    3. It returns `Forbidden`, with the body of `dataservice:forbidden`, when that handler refuses or when no handler authenticates the credential, and `()` otherwise.
-3. `hasScope` checks the credential as in rule 2 and returns whether it holds one of the given scopes. It returns `false` when no handler authenticates the credential. Patch and delete call it with the entity's `read` scopes when those do not cover the action's, and return no record when it is `false`.
+1. A data service with auth creates its `Authenticator` at startup with a module-level `check`, from the configured providers and the scopes of each operation, keyed by the collection and then by the HTTP method. It creates the listener auth handler of each provider: `http:ListenerFileUserStoreBasicAuthHandler`, `http:ListenerLdapUserStoreBasicAuthHandler`, `http:ListenerJwtAuthHandler` or `http:ListenerOAuth2Handler`.
+2. The request interceptor's resource, `'default [string... path]`, returns `authorize` with the request context, the request and the path. For each request, `authorize`:
+    1. Passes an `OPTIONS` request, such as a CORS preflight, to the next service without a credential.
+    2. Tries the handlers in the order of the providers, as `ballerina/http` does, and the first that authenticates the credential decides. When none does, it returns `Unauthorized` with the body of `dataservice:unauthenticated`.
+    3. Keeps the authenticated caller in the request context.
+    4. Looks up the scopes of the first path segment's collection and the request's method. When there are scopes and the caller holds none of them, as the deciding handler's `authorize` checks them, it returns `Forbidden` with the body of `dataservice:noScope`. A path or method without scopes, such as the OpenAPI definition, needs only the credential.
+    5. Returns the next service otherwise.
+3. `checkRelationScopes` checks a relation whose related entity's `read` scopes the entity's do not cover. A resource that reads such a relation, by get related or in `fields`, calls it before reading, with the request context, the entity's name, the relation, the related entity's name and the related entity's `read` scopes. It returns `Forbidden`, with the body of `dataservice:forbidden`, when the caller holds none of the scopes, and `()` otherwise.
+4. `hasScope` returns whether the caller in the request context holds one of the given scopes, and `false` when the request was not authenticated. Patch and delete call it with the entity's `read` scopes when those do not cover the action's, and return no record when it is `false`.
+5. For an OAuth2 provider, a scope is held when it is one of the space-separated values of the introspection response's `scopeKey` claim, as `http:ListenerOAuth2Handler` checks it.
 
 ### 6.3. Errors
 
 | Case | Result |
 |---|---|
-| The providers list is empty | `initAuthProviders` returns an error with the message `The configurable value 'dataserviceConfig.serviceConfig.auth' must hold at least one authentication provider.`, so the program stops. |
-| No handler authenticates the credential, or the deciding handler refuses the scopes | `checkRelationScopes` returns `Forbidden`; `hasScope` returns `false`. |
+| The providers list is empty | Creating `Authenticator` returns an error with the message `The configurable value 'dataserviceConfig.serviceConfig.auth' must hold at least one authentication provider.`, so the program stops. |
+| No handler authenticates the credential | `authorize` returns `Unauthorized`. |
+| The caller holds no scope of the operation | `authorize` returns `Forbidden`. |
+| The caller holds no scope that `checkRelationScopes` or `hasScope` is given | `checkRelationScopes` returns `Forbidden`; `hasScope` returns `false`. |
 
 ### 6.4. Interactions
 
-`ballerina/http` has already checked the credential before the resource runs, so `checkRelationScopes` and `hasScope` are a second check: a JWT signature is verified again unless the provider's cache is configured, an OAuth2 token is introspected again unless its cache is configured, and an LDAP user is looked up again.
+The credential is checked once per request. `checkRelationScopes` and `hasScope` read the caller that `authorize` kept, so they do not verify a JWT, introspect an OAuth2 token or look up an LDAP user again.
 
 ## 7. Security considerations
 
 - Every error response carries only the `dataservice:DataserviceError` body. The persist client's error message, which can hold driver text such as table and constraint names, is never returned; it is logged.
 - The default `cors` allows no cross-origin request.
 - A service with auth does not start without at least one authentication provider.
+- A request without a valid credential is answered with `401` before it is dispatched or bound, so binding errors do not reveal the request types to an unauthenticated caller. An `OPTIONS` request needs no credential, and its answer lists only the allowed methods.
 - A relation that needs a scope of the related entity, and the record that patch and delete return, are checked against the credential at runtime, so a caller's `update` or `delete` scope alone does not reveal a record.
 - A key value in `Location` is percent-encoded, so a key cannot add a path segment or a query to the header.
 

@@ -23,15 +23,34 @@ type Item record {|
     string name;
 |};
 
-@http:ServiceConfig {auth: [{fileUserStoreConfig: {}}]}
+final Authenticator itemAuthenticator = check new ([{fileUserStoreConfig: {}}], {"items": {"GET": ["departments:read"]}});
+
+// The interceptors a generated service defines in its own package.
+isolated service class ItemAuthInterceptor {
+    *http:RequestInterceptor;
+
+    isolated resource function 'default [string... path](http:RequestContext ctx, http:Request request)
+            returns http:NextService|Unauthorized|Forbidden|error? => itemAuthenticator.authorize(ctx, request, path);
+}
+
+isolated service class ItemErrorInterceptor {
+    *http:ResponseErrorInterceptor;
+
+    isolated remote function interceptResponseError(error err, http:RequestContext ctx, http:Response response)
+            returns http:NextService? {
+        setErrorBody(response, err);
+        http:NextService|error? next = ctx.next();
+        return next is http:NextService ? next : ();
+    }
+}
+
+@http:ServiceConfig {cors: {allowOrigins: ["https://app.example.com"]}}
 service http:InterceptableService /api on new http:Listener(9591) {
 
-    public function createInterceptors() returns ErrorInterceptor => new;
+    public function createInterceptors() returns [ItemAuthInterceptor, ItemErrorInterceptor] => [new, new];
 
-    @http:ResourceConfig {auth: {scopes: ["departments:read"]}}
     resource function get items/[int id](int? size = ()) returns Item => {id, name: "a"};
 
-    @http:ResourceConfig {auth: {scopes: ["departments:read"]}}
     resource function post items(Item payload) returns Item => payload;
 }
 
@@ -57,11 +76,31 @@ function testInterceptedError(string caller, string method, string path, json? b
 
 function interceptedErrors() returns [string, string, string, json?, int, string, string][] => [
     ["anonymous", "GET", "/items/1", (), 401, dataservice:UNAUTHENTICATED, "The request needs a valid credential."],
+    ["anonymous", "GET", "/items/abc", (), 401, dataservice:UNAUTHENTICATED, ""],
+    ["anonymous", "POST", "/items", {id: 1}, 401, dataservice:UNAUTHENTICATED, ""],
+    ["anonymous", "GET", "/missing", (), 401, dataservice:UNAUTHENTICATED, ""],
+    ["anonymous", "PUT", "/items/1", {id: 1, name: "a"}, 401, dataservice:UNAUTHENTICATED, ""],
     ["guest", "GET", "/items/1", (), 403, dataservice:FORBIDDEN, "The caller holds no scope that the operation needs."],
+    ["guest", "GET", "/items/abc", (), 403, dataservice:FORBIDDEN, ""],
     ["reader", "GET", "/items/abc", (), 400, dataservice:INVALID_INPUT, "error in casting path parameter : 'id'"],
     ["reader", "GET", "/items/1?size=x", (), 400, dataservice:INVALID_INPUT, ""],
-    ["reader", "POST", "/items", {id: 1}, 400, dataservice:INVALID_INPUT, ""],
+    ["guest", "POST", "/items", {id: 1}, 400, dataservice:INVALID_INPUT, ""],
     ["reader", "GET", "/missing", (), 404, dataservice:NOT_FOUND, ""],
     ["reader", "PUT", "/items/1", {id: 1, name: "a"}, 405, dataservice:INVALID_INPUT, ""]
 ];
 
+@test:Config
+function testOptionsNeedsNoCredential() returns error? {
+    http:Response preflight = check anonymousClient->options("/items/1",
+        {"Origin": "https://app.example.com", "Access-Control-Request-Method": "GET"});
+    test:assertEquals(preflight.statusCode, 204);
+    test:assertEquals(check preflight.getHeader("Access-Control-Allow-Origin"), "https://app.example.com");
+}
+
+@test:Config
+function testAllowedRequestReachesTheResource() returns error? {
+    Item item = check readerClient->get("/items/1");
+    test:assertEquals(item, {id: 1, name: "a"});
+    Item created = check guestClient->post("/items", {id: 2, name: "b"});
+    test:assertEquals(created, {id: 2, name: "b"});
+}

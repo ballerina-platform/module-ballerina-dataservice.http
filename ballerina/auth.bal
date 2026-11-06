@@ -23,97 +23,171 @@ import ballerina/oauth2;
 type AuthHandler http:ListenerFileUserStoreBasicAuthHandler|http:ListenerLdapUserStoreBasicAuthHandler
     |http:ListenerJwtAuthHandler|http:ListenerOAuth2Handler;
 
-isolated AuthHandler[] authHandlers = [];
+const CALLER = "dataservice.http.caller";
 
-# Checks the authentication providers that a data service with auth is configured with, and creates the handlers
-# that `checkRelationScopes` and `hasScope` check a credential with.
-#
-# + providers - The value of `dataserviceConfig.serviceConfig.auth`
-# + return - The providers, or an error when there is none
-public isolated function initAuthProviders(http:ListenerAuthConfig[] providers)
-        returns http:ListenerAuthConfig[]|error {
-    if providers.length() == 0 {
-        return error("The configurable value 'dataserviceConfig.serviceConfig.auth' must hold at least one " +
-            "authentication provider.");
-    }
-    lock {
-        authHandlers.removeAll();
-    }
-    foreach http:ListenerAuthConfig provider in providers {
-        AuthHandler handler;
-        if provider is http:FileUserStoreConfigWithScopes {
-            handler = new http:ListenerFileUserStoreBasicAuthHandler(provider.fileUserStoreConfig);
-        } else if provider is http:LdapUserStoreConfigWithScopes {
-            handler = new http:ListenerLdapUserStoreBasicAuthHandler(provider.ldapUserStoreConfig.cloneReadOnly());
-        } else if provider is http:JwtValidatorConfigWithScopes {
-            handler = new http:ListenerJwtAuthHandler(provider.jwtValidatorConfig.cloneReadOnly());
-        } else {
-            handler = new http:ListenerOAuth2Handler(provider.oauth2IntrospectionConfig.cloneReadOnly());
+# Authenticates each request of a data service with auth and checks the scopes of its operation, before
+# `ballerina/http` dispatches the request and binds its parameters.
+public isolated class Authenticator {
+    private final AuthHandler[] handlers = [];
+    private final readonly & string[] oauth2ScopeKeys;
+    private final readonly & map<map<string[]>> scopes;
+
+    # Checks the authentication providers and creates their handlers.
+    #
+    # + providers - The value of `dataserviceConfig.serviceConfig.auth`
+    # + scopes - The scopes of each operation, by collection and then by HTTP method
+    # + return - An error when there is no provider
+    public isolated function init(http:ListenerAuthConfig[] providers, map<map<string[]>> scopes) returns error? {
+        if providers.length() == 0 {
+            return error("The configurable value 'dataserviceConfig.serviceConfig.auth' must hold at least one " +
+                "authentication provider.");
         }
+        string[] oauth2ScopeKeys = [];
+        foreach http:ListenerAuthConfig provider in providers {
+            AuthHandler handler;
+            if provider is http:FileUserStoreConfigWithScopes {
+                handler = new http:ListenerFileUserStoreBasicAuthHandler(provider.fileUserStoreConfig);
+            } else if provider is http:LdapUserStoreConfigWithScopes {
+                handler = new http:ListenerLdapUserStoreBasicAuthHandler(provider.ldapUserStoreConfig.cloneReadOnly());
+            } else if provider is http:JwtValidatorConfigWithScopes {
+                handler = new http:ListenerJwtAuthHandler(provider.jwtValidatorConfig.cloneReadOnly());
+            } else {
+                handler = new http:ListenerOAuth2Handler(provider.oauth2IntrospectionConfig.cloneReadOnly());
+            }
+            lock {
+                self.handlers.push(handler);
+            }
+            oauth2ScopeKeys.push(provider is http:OAuth2IntrospectionConfigWithScopes ?
+                provider.oauth2IntrospectionConfig.scopeKey : "");
+        }
+        self.oauth2ScopeKeys = oauth2ScopeKeys.cloneReadOnly();
+        self.scopes = scopes.cloneReadOnly();
+    }
+
+    # Authenticates the request, keeps the caller in the request context, and checks that the caller holds a scope
+    # of the operation. An `OPTIONS` request, such as a CORS preflight, is passed on without a credential.
+    #
+    # + ctx - The request context
+    # + request - The request
+    # + path - The request's path, relative to the service
+    # + return - The next service, `Unauthorized` without a valid credential, or `Forbidden` without a scope
+    public isolated function authorize(http:RequestContext ctx, http:Request request, string[] path)
+            returns http:NextService|Unauthorized|Forbidden|error? {
+        if request.method == http:OPTIONS {
+            return ctx.next();
+        }
+        Caller? caller = self.authenticate(request);
+        if caller is () {
+            return <Unauthorized>{body: dataservice:unauthenticated()};
+        }
+        ctx.set(CALLER, caller);
+        string[]? scopes = path.length() == 0 ? () : self.scopes[path[0]][request.method];
+        if scopes is string[] && scopes.length() > 0 && !caller.hasScope(scopes) {
+            return <Forbidden>{body: dataservice:noScope()};
+        }
+        return ctx.next();
+    }
+
+    // The handlers are tried in the order of the providers, as `ballerina/http` does, and the first that
+    // authenticates the credential decides.
+    isolated function authenticate(http:Request request) returns Caller? {
+        int count;
         lock {
-            authHandlers.push(handler);
+            count = self.handlers.length();
         }
+        foreach int i in 0 ..< count {
+            AuthHandler handler;
+            lock {
+                handler = self.handlers[i];
+            }
+            if handler is http:ListenerFileUserStoreBasicAuthHandler {
+                auth:UserDetails|http:Unauthorized user = handler.authenticate(request);
+                if user is auth:UserDetails {
+                    return new (handler, user.cloneReadOnly());
+                }
+            } else if handler is http:ListenerLdapUserStoreBasicAuthHandler {
+                auth:UserDetails|http:Unauthorized user = handler->authenticate(request);
+                if user is auth:UserDetails {
+                    return new (handler, user.cloneReadOnly());
+                }
+            } else if handler is http:ListenerJwtAuthHandler {
+                jwt:Payload|http:Unauthorized payload = handler.authenticate(request);
+                if payload !is http:Unauthorized {
+                    // `jwt:Payload` is an open record, so the check above does not narrow `payload`.
+                    return new (handler, (<jwt:Payload>payload).cloneReadOnly());
+                }
+            } else if handler is http:ListenerOAuth2Handler {
+                oauth2:IntrospectionResponse|http:Unauthorized|http:Forbidden response = handler->authorize(request);
+                if response is oauth2:IntrospectionResponse {
+                    return new (self.oauth2ScopeKeys[i], response.cloneReadOnly());
+                }
+            }
+        }
+        return ();
     }
-    return providers;
+}
+
+// The authenticated caller of a request. Its scopes are checked as the handler that authenticated it checks them.
+isolated class Caller {
+    private final AuthHandler|string authority;
+    private final readonly & (auth:UserDetails|jwt:Payload|oauth2:IntrospectionResponse) details;
+
+    isolated function init(AuthHandler|string authority,
+            readonly & (auth:UserDetails|jwt:Payload|oauth2:IntrospectionResponse) details) {
+        self.authority = authority;
+        self.details = details;
+    }
+
+    isolated function hasScope(string[] scopes) returns boolean {
+        AuthHandler|string authority = self.authority;
+        readonly & (auth:UserDetails|jwt:Payload|oauth2:IntrospectionResponse) details = self.details;
+        if authority is http:ListenerFileUserStoreBasicAuthHandler {
+            return authority.authorize(<auth:UserDetails>details, scopes) is ();
+        }
+        if authority is http:ListenerLdapUserStoreBasicAuthHandler {
+            http:Forbidden? refused = authority->authorize(<auth:UserDetails>details, scopes);
+            return refused is ();
+        }
+        if authority is http:ListenerJwtAuthHandler {
+            return authority.authorize(<jwt:Payload>details, scopes) is ();
+        }
+        // As `http:ListenerOAuth2Handler` does, the scope claim is a space-separated string.
+        anydata held = (<oauth2:IntrospectionResponse>details)[<string>authority];
+        if held !is string {
+            return false;
+        }
+        string[] heldScopes = re ` `.split(held);
+        foreach string scope in scopes {
+            if heldScopes.indexOf(scope) !is () {
+                return true;
+            }
+        }
+        return false;
+    }
+}
+
+# Tells whether the caller of the request holds one of the scopes.
+#
+# + ctx - The request context, in which `Authenticator` keeps the caller
+# + scopes - The scopes
+# + return - Whether the caller holds one of them; `false` when the request was not authenticated
+public isolated function hasScope(http:RequestContext ctx, string[] scopes) returns boolean {
+    if !ctx.hasKey(CALLER) {
+        return false;
+    }
+    http:ReqCtxMember caller = ctx.get(CALLER);
+    return caller is Caller && caller.hasScope(scopes);
 }
 
 # Checks that the caller may read a related entity, for a relation whose `read` scopes the entity's do not cover.
 #
-# + request - The request
+# + ctx - The request context, in which `Authenticator` keeps the caller
 # + entity - The name of the entity
 # + relation - The relation field
 # + target - The name of the related entity
 # + scopes - The `read` scopes of the related entity
-# + return - `Forbidden` when the request's credential holds none of the scopes, or `()`
-public isolated function checkRelationScopes(http:Request request, string entity, string relation, string target,
+# + return - `Forbidden` when the caller holds none of the scopes, or `()`
+public isolated function checkRelationScopes(http:RequestContext ctx, string entity, string relation, string target,
         string[] scopes) returns Forbidden? {
-    return hasScope(request, scopes) ? () : {body: dataservice:forbidden(entity, relation, target)};
-}
-
-# Tells whether the request's credential holds one of the scopes, as the service's authentication providers check it.
-#
-# + request - The request
-# + scopes - The scopes
-# + return - Whether the credential holds one of them; `false` when no provider authenticates it
-public isolated function hasScope(http:Request request, string[] scopes) returns boolean {
-    int count;
-    lock {
-        count = authHandlers.length();
-    }
-    // The handlers are tried in the order of the providers, as `ballerina/http` does, and the first that
-    // authenticates the credential decides.
-    foreach int i in 0 ..< count {
-        AuthHandler handler;
-        lock {
-            handler = authHandlers[i];
-        }
-        if handler is http:ListenerFileUserStoreBasicAuthHandler {
-            auth:UserDetails|http:Unauthorized user = handler.authenticate(request);
-            if user is http:Unauthorized {
-                continue;
-            }
-            return handler.authorize(user, scopes) is ();
-        } else if handler is http:ListenerLdapUserStoreBasicAuthHandler {
-            auth:UserDetails|http:Unauthorized user = handler->authenticate(request);
-            if user is http:Unauthorized {
-                continue;
-            }
-            http:Forbidden? refused = handler->authorize(user, scopes);
-            return refused is ();
-        } else if handler is http:ListenerJwtAuthHandler {
-            jwt:Payload|http:Unauthorized payload = handler.authenticate(request);
-            if payload is http:Unauthorized {
-                continue;
-            }
-            // `jwt:Payload` is an open record, so the check above does not narrow `payload`.
-            return handler.authorize(<jwt:Payload>payload, scopes) is ();
-        } else if handler is http:ListenerOAuth2Handler {
-            oauth2:IntrospectionResponse|http:Unauthorized|http:Forbidden result = handler->authorize(request, scopes);
-            if result is http:Unauthorized {
-                continue;
-            }
-            return result !is http:Forbidden;
-        }
-    }
-    return false;
+    return hasScope(ctx, scopes) ? () : {body: dataservice:forbidden(entity, relation, target)};
 }

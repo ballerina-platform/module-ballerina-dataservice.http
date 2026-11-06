@@ -17,24 +17,16 @@
 import ballerina/dataservice;
 import ballerina/http;
 
-# Answers the errors that `ballerina/http` raises before a resource runs, such as binding, auth and dispatching
-# errors, with the `DataserviceError` body, keeping their status code.
-public isolated service class ErrorInterceptor {
-    *http:ResponseErrorInterceptor;
-
-    isolated remote function interceptResponseError(error err, http:Response response) returns http:Response {
-        response.setJsonPayload(errorBody(response.statusCode, err), "application/json");
-        return response;
-    }
+# Sets the data service error body on a response that `ballerina/http` built for an error raised before a resource
+# runs, such as a binding or dispatching error, keeping its status code.
+#
+# + response - The response
+# + err - The error
+public isolated function setErrorBody(http:Response response, error err) {
+    response.setJsonPayload(errorBody(response.statusCode, err), "application/json");
 }
 
 isolated function errorBody(int status, error err) returns dataservice:DataserviceError {
-    if status == http:STATUS_UNAUTHORIZED {
-        return dataservice:unauthenticated();
-    }
-    if status == http:STATUS_FORBIDDEN {
-        return dataservice:noScope();
-    }
     if status == http:STATUS_NOT_FOUND {
         return {code: dataservice:NOT_FOUND, message: err.message()};
     }
