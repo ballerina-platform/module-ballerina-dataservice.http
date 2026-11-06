@@ -75,7 +75,7 @@ Each response type includes its `http` status code record and has the field `bod
 
 ### 3.3. Behaviour
 
-A generated resource declares only the responses its operation can return, so each operation has its own mapping function. Each maps an error that the persist client returned with `dataservice:toErrorBody`, given the entity's name and, where the operation has one, the record's key.
+A generated resource declares only the responses its operation can return, so each operation has its own mapping function. Each maps an error that the persist client returned with `dataservice:toErrorBody`, given the entity's name, the operation's name and, where the operation has one, the record's key.
 
 | Function | Used for | Responses |
 |---|---|---|
@@ -92,6 +92,7 @@ A generated resource declares only the responses its operation can return, so ea
 3. `toInvalidInput` builds the message `The field '<field>' of the entity '<Entity>' is not <format>.`, where `<format>` is the `format` of the conversion error: `an ISO 8601 date`, `an ISO 8601 time`, `an ISO 8601 date-time` or `a base64 string`.
 4. `toQueryError` returns an error body as it is, and builds the message of rule 3 for a filter value that does not parse, with the field the conversion error names.
 5. As `dataservice:toErrorBody` defines, the detail of a constraint violation or an internal error is logged and not returned to the caller.
+6. The error is logged once, with the entity's name and the operation's name. The operation is `get many` for `toListError`, `get one` for `toGetError`, `create`, `patch one` and `delete one`. A get related passes `get related` to `toListError` and `toGetError`.
 
 ### 3.4. Errors raised by ballerina/http
 

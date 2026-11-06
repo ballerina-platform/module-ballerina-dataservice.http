@@ -32,7 +32,7 @@ service /api on new http:Listener(9590) {
                 return toDeleteError(error persist:ConstraintViolationError("FK"), "Employee", [1]);
             }
         }
-        return toListError(error("boom"));
+        return toListError(error("boom"), "Item");
     }
 }
 

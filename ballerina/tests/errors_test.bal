@@ -16,6 +16,7 @@
 
 import ballerina/dataservice;
 import ballerina/http;
+import ballerina/io;
 import ballerina/persist;
 import ballerina/test;
 
@@ -23,15 +24,37 @@ final dataservice:DataserviceError internal = {code: dataservice:INTERNAL, messa
 
 @test:Config
 function testListError() {
-    InternalError response = toListError(error persist:Error("connection refused"));
+    InternalError response = toListError(error persist:Error("connection refused"), "Employee");
     test:assertEquals(response.body, internal);
     test:assertEquals(response.status.code, 500);
 }
 
 @test:Config
 function testListErrorKeepsCodeForOtherCategories() {
-    test:assertEquals(toListError(error persist:NotFoundError("no row")).body, internal);
+    test:assertEquals(toListError(error persist:NotFoundError("no row"), "Employee").body, internal);
 }
+
+@test:Config {dataProvider: loggedErrors}
+function testErrorIsLoggedOnceWithTheEntityAndOperation(string message, function (error err) returns any mapper,
+        string expected) returns error? {
+    _ = mapper(error persist:ConstraintViolationError(message));
+    string[] lines = from string line in check io:fileReadLines("target/errors_test.log")
+        where line.includes(message) select line;
+    test:assertEquals(lines.length(), 1, message);
+    test:assertTrue(lines[0].includes(expected), lines[0]);
+}
+
+function loggedErrors() returns [string, function (error err) returns any, string][] => [
+    ["list failed", err => toListError(err, "Employee"), "entity=\"Employee\" operation=\"get many\""],
+    ["related failed", err => toListError(err, "Employee", "get related"),
+        "entity=\"Employee\" operation=\"get related\""],
+    ["get failed", err => toGetError(err, "Employee", [1]), "entity=\"Employee\" operation=\"get one\""],
+    ["create failed", err => toCreateError(err, "Employee"), "entity=\"Employee\" operation=\"create\""],
+    ["update failed", err => toUpdateError(err, "Employee", [1]),
+        "entity=\"Employee\" operation=\"patch one\""],
+    ["delete failed", err => toDeleteError(err, "Employee", [1]),
+        "entity=\"Employee\" operation=\"delete one\""]
+];
 
 @test:Config
 function testGetErrorNotFound() {

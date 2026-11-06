@@ -79,19 +79,23 @@ public type InternalError record {|
 # Maps an error from reading many records to the `500` response.
 #
 # + err - The error the persist client returned
+# + entity - The name of the entity
+# + operation - The name of the operation, which is logged with the error
 # + return - The `500` response
-public isolated function toListError(error err) returns InternalError => toInternalError(err);
+public isolated function toListError(error err, string entity, string operation = "get many") returns InternalError =>
+    toInternalError(err, entity, operation);
 
 # Maps an error from reading one record to its response.
 #
 # + err - The error the persist client returned
 # + entity - The name of the entity
 # + key - The values of the record's key fields, in key order
+# + operation - The name of the operation, which is logged with the error
 # + return - The `404` or `500` response
-public isolated function toGetError(error err, string entity, dataservice:KeyValue[] key)
+public isolated function toGetError(error err, string entity, dataservice:KeyValue[] key, string operation = "get one")
         returns NotFound|InternalError {
-    dataservice:DataserviceError body = dataservice:toErrorBody(err, entity, key);
-    return body.code == dataservice:NOT_FOUND ? <NotFound>{body} : toInternalError(err, body);
+    dataservice:DataserviceError body = dataservice:toErrorBody(err, entity, key, operation);
+    return body.code == dataservice:NOT_FOUND ? <NotFound>{body} : toInternalError(err, entity, operation, body);
 }
 
 # Maps an error from creating records, or from reading a created record back, to its response.
@@ -102,7 +106,7 @@ public isolated function toGetError(error err, string entity, dataservice:KeyVal
 public isolated function toCreateError(error err, string entity)
         returns Conflict|ConstraintViolation|InternalError {
     // Conflict and ConstraintViolation have the same shape, so the category is decided from the body's code.
-    dataservice:DataserviceError body = dataservice:toErrorBody(err, entity);
+    dataservice:DataserviceError body = dataservice:toErrorBody(err, entity, operation = CREATE);
     match body.code {
         dataservice:CONFLICT => {
             return <Conflict>{body};
@@ -111,7 +115,7 @@ public isolated function toCreateError(error err, string entity)
             return <ConstraintViolation>{body};
         }
     }
-    return toInternalError(err, body);
+    return toInternalError(err, entity, CREATE, body);
 }
 
 # Maps an error from updating a record to its response. An update that is saved but cannot be read back has no
@@ -124,10 +128,11 @@ public isolated function toCreateError(error err, string entity)
 public isolated function toUpdateError(error err, string entity, dataservice:KeyValue[] key)
         returns http:NoContent|NotFound|Conflict|ConstraintViolation|InternalError {
     if err is persist:ReadBackError {
-        log:printError("A data service update was saved but could not be read back.", 'error = err, entity = entity);
+        log:printError("A data service update was saved but could not be read back.", 'error = err, entity = entity,
+                operation = UPDATE);
         return http:NO_CONTENT;
     }
-    dataservice:DataserviceError body = dataservice:toErrorBody(err, entity, key);
+    dataservice:DataserviceError body = dataservice:toErrorBody(err, entity, key, UPDATE);
     match body.code {
         dataservice:NOT_FOUND => {
             return <NotFound>{body};
@@ -139,7 +144,7 @@ public isolated function toUpdateError(error err, string entity, dataservice:Key
             return <ConstraintViolation>{body};
         }
     }
-    return toInternalError(err, body);
+    return toInternalError(err, entity, UPDATE, body);
 }
 
 # Maps an error from deleting a record to its response.
@@ -150,7 +155,7 @@ public isolated function toUpdateError(error err, string entity, dataservice:Key
 # + return - The `404`, `409` or `500` response
 public isolated function toDeleteError(error err, string entity, dataservice:KeyValue[] key)
         returns NotFound|ConstraintViolation|InternalError {
-    dataservice:DataserviceError body = dataservice:toErrorBody(err, entity, key);
+    dataservice:DataserviceError body = dataservice:toErrorBody(err, entity, key, DELETE);
     match body.code {
         dataservice:NOT_FOUND => {
             return <NotFound>{body};
@@ -159,7 +164,7 @@ public isolated function toDeleteError(error err, string entity, dataservice:Key
             return <ConstraintViolation>{body};
         }
     }
-    return toInternalError(err, body);
+    return toInternalError(err, entity, DELETE, body);
 }
 
 # Maps a field value that is not in its JSON format to the `400` response.
@@ -189,11 +194,19 @@ public isolated function toQueryError(dataservice:DataserviceError|dataservice:C
     return {body: err};
 }
 
+const CREATE = "create";
+const UPDATE = "patch one";
+const DELETE = "delete one";
+
 // A body of another category is replaced, and logged as internal, so the code always matches the status.
-isolated function toInternalError(error err, dataservice:DataserviceError? body = ())
+isolated function toInternalError(error err, string entity, string operation, dataservice:DataserviceError? body = ())
         returns InternalError {
     if body is dataservice:DataserviceError && body.code == dataservice:INTERNAL {
         return {body};
     }
-    return {body: dataservice:toErrorBody(error(err.message(), err))};
+    if body is dataservice:DataserviceError && body.code == dataservice:CONSTRAINT_VIOLATION {
+        // toErrorBody has already logged it.
+        return {body: {code: dataservice:INTERNAL, message: "An internal error occurred."}};
+    }
+    return {body: dataservice:toErrorBody(error(err.message(), err), entity, operation = operation)};
 }
