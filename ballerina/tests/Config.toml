@@ -7,6 +7,11 @@ scopes = ["departments:read"]
 username = "guest"
 password = "guest-pass"
 
+[[ballerina.auth.users]]
+username = "admin"
+password = "admin-pass"
+scopes = ["hr:admin"]
+
 [[ballerina.log.destinations]]
 type = "stderr"
 

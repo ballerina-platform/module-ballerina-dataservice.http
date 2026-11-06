@@ -22,9 +22,14 @@ import ballerina/test;
 
 const JWT_SECRET = "dataservice-test-secret";
 
-// An OAuth2 introspection endpoint that knows one active token.
+isolated int introspections = 0;
+
+// An OAuth2 introspection endpoint that knows one active token, and counts the tokens it is sent.
 service /oauth2 on new http:Listener(9593) {
     resource function post introspect(http:Request request) returns json|error {
+        lock {
+            introspections += 1;
+        }
         map<string> form = check request.getFormParams();
         return form["token"] == "departments-token" ? {active: true, scope: "hr:read departments:read"} :
             {active: false};
@@ -123,3 +128,52 @@ function testChallengeOfEachProviderKind() returns error? {
     test:assertEquals(check response.getHeaders("WWW-Authenticate"),
             ["Basic realm=\"dataservice\"", "Bearer realm=\"dataservice\""]);
 }
+
+@test:Config
+function testBasicCredentialIsNotIntrospected() returns error? {
+    int before;
+    lock {
+        before = introspections;
+    }
+    http:Client c = check new ("http://localhost:9592/scopes");
+    http:Response response = check c->get("/has?scope=departments:read", {"Authorization": basic("reader", "wrong")});
+    test:assertEquals(response.statusCode, 401);
+    lock {
+        test:assertEquals(introspections, before);
+    }
+}
+
+final Authenticator providerAuthenticator = check new ([{fileUserStoreConfig: {}, scopes: ["departments:read"]}],
+    {"guarded": {"GET": ["hr:admin"]}});
+
+isolated service class ProviderInterceptor {
+    *http:RequestInterceptor;
+
+    isolated resource function 'default [string... path](http:RequestContext ctx, http:Request request)
+            returns http:NextService|Unauthorized|Forbidden|error? =>
+        providerAuthenticator.authorize(ctx, request, path);
+}
+
+service http:InterceptableService /provider on new http:Listener(9594) {
+
+    public function createInterceptors() returns ProviderInterceptor => new;
+
+    resource function get open() returns string => "open";
+
+    resource function get guarded() returns string => "guarded";
+}
+
+@test:Config {dataProvider: providerScopeCases}
+function testProviderScopesApplyToAnOperationWithout(string username, string path, int status) returns error? {
+    http:Client c = check new ("http://localhost:9594/provider");
+    http:Response response = check c->get(path, {"Authorization": basic(username, username + "-pass")});
+    test:assertEquals(response.statusCode, status, string `${username} ${path}`);
+}
+
+function providerScopeCases() returns [string, string, int][] => [
+    ["reader", "/open", 200],
+    ["guest", "/open", 403],
+    // An operation's own scopes replace the provider's.
+    ["admin", "/guarded", 200],
+    ["reader", "/guarded", 403]
+];

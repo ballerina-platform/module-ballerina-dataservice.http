@@ -27,12 +27,13 @@ const CALLER = "dataservice.http.caller";
 const WWW_AUTHENTICATE = "WWW-Authenticate";
 const BASIC_CHALLENGE = "Basic realm=\"dataservice\"";
 const BEARER_CHALLENGE = "Bearer realm=\"dataservice\"";
+const BASIC_SCHEME = "Basic";
+const BEARER_SCHEME = "Bearer";
 
 # Authenticates each request of a data service with auth and checks the scopes of its operation, before
 # `ballerina/http` dispatches the request and binds its parameters.
 public isolated class Authenticator {
-    private final AuthHandler[] handlers = [];
-    private final readonly & string[] oauth2ScopeKeys;
+    private final Provider[] providers = [];
     private final readonly & map<map<string[]>> scopes;
     private final readonly & string[] challenges;
     private final readonly & http:CorsConfig cors;
@@ -49,15 +50,15 @@ public isolated class Authenticator {
             return error("The configurable value 'dataserviceConfig.serviceConfig.auth' must hold at least one " +
                 "authentication provider.");
         }
-        string[] oauth2ScopeKeys = [];
         string[] challenges = [];
         foreach http:ListenerAuthConfig provider in providers {
-            string challenge = provider is http:FileUserStoreConfigWithScopes|http:LdapUserStoreConfigWithScopes ?
-                BASIC_CHALLENGE : BEARER_CHALLENGE;
+            boolean basic = provider is http:FileUserStoreConfigWithScopes|http:LdapUserStoreConfigWithScopes;
+            string challenge = basic ? BASIC_CHALLENGE : BEARER_CHALLENGE;
             if challenges.indexOf(challenge) is () {
                 challenges.push(challenge);
             }
             AuthHandler handler;
+            string scopeKey = "";
             if provider is http:FileUserStoreConfigWithScopes {
                 handler = new http:ListenerFileUserStoreBasicAuthHandler(provider.fileUserStoreConfig);
             } else if provider is http:LdapUserStoreConfigWithScopes {
@@ -66,21 +67,32 @@ public isolated class Authenticator {
                 handler = new http:ListenerJwtAuthHandler(provider.jwtValidatorConfig.cloneReadOnly());
             } else {
                 handler = new http:ListenerOAuth2Handler(provider.oauth2IntrospectionConfig.cloneReadOnly());
+                scopeKey = provider.oauth2IntrospectionConfig.scopeKey;
+            }
+            string|string[]? configured = provider?.scopes;
+            readonly & string[]? providerScopes;
+            if configured is string {
+                providerScopes = [configured];
+            } else {
+                providerScopes = configured.cloneReadOnly();
             }
             lock {
-                self.handlers.push(handler);
+                self.providers.push({
+                    handler,
+                    scheme: basic ? BASIC_SCHEME : BEARER_SCHEME,
+                    scopeKey,
+                    scopes: providerScopes
+                });
             }
-            oauth2ScopeKeys.push(provider is http:OAuth2IntrospectionConfigWithScopes ?
-                provider.oauth2IntrospectionConfig.scopeKey : "");
         }
-        self.oauth2ScopeKeys = oauth2ScopeKeys.cloneReadOnly();
         self.scopes = scopes.cloneReadOnly();
         self.challenges = challenges.cloneReadOnly();
         self.cors = cors.cloneReadOnly();
     }
 
     # Authenticates the request, keeps the caller in the request context, and checks that the caller holds a scope
-    # of the operation. An `OPTIONS` request, such as a CORS preflight, is passed on without a credential.
+    # of the operation, or, for an operation without scopes, a scope of the provider that authenticated it. An
+    # `OPTIONS` request, such as a CORS preflight, is passed on without a credential.
     #
     # + ctx - The request context
     # + request - The request
@@ -99,7 +111,9 @@ public isolated class Authenticator {
         }
         ctx.set(CALLER, caller);
         string[]? scopes = path.length() == 0 ? () : self.scopes[path[0]][request.method];
-        if scopes is string[] && scopes.length() > 0 && !caller.hasScope(scopes) {
+        // As `ballerina/http` applies a service's scopes to a resource without scopes of its own.
+        string[]? required = scopes is string[] && scopes.length() > 0 ? scopes : caller.providerScopes;
+        if required is string[] && required.length() > 0 && !caller.hasScope(required) {
             return <Forbidden>{headers: self.corsHeaders(request), body: dataservice:noScope()};
         }
         return ctx.next();
@@ -133,38 +147,54 @@ public isolated class Authenticator {
         return headers;
     }
 
-    // The handlers are tried in the order of the providers, as `ballerina/http` does, and the first that
-    // authenticates the credential decides.
+    // As `ballerina/http` does, a `Basic` credential is tried only with the user stores and a `Bearer` credential
+    // only with the JWT and OAuth2 providers, in the order of the providers, and the first that authenticates the
+    // credential decides.
     isolated function authenticate(http:Request request) returns Caller? {
+        string|http:HeaderNotFoundError header = request.getHeader("Authorization");
+        if header is http:HeaderNotFoundError {
+            return ();
+        }
+        string scheme = re `\s`.split(header)[0];
         int count;
         lock {
-            count = self.handlers.length();
+            count = self.providers.length();
         }
         foreach int i in 0 ..< count {
             AuthHandler handler;
+            string providerScheme;
+            string scopeKey;
+            readonly & string[]? providerScopes;
             lock {
-                handler = self.handlers[i];
+                Provider provider = self.providers[i];
+                handler = provider.handler;
+                providerScheme = provider.scheme;
+                scopeKey = provider.scopeKey;
+                providerScopes = provider.scopes;
+            }
+            if providerScheme != scheme {
+                continue;
             }
             if handler is http:ListenerFileUserStoreBasicAuthHandler {
                 auth:UserDetails|http:Unauthorized user = handler.authenticate(request);
                 if user is auth:UserDetails {
-                    return new (handler, user.cloneReadOnly());
+                    return new (handler, scopeKey, user.cloneReadOnly(), providerScopes);
                 }
             } else if handler is http:ListenerLdapUserStoreBasicAuthHandler {
                 auth:UserDetails|http:Unauthorized user = handler->authenticate(request);
                 if user is auth:UserDetails {
-                    return new (handler, user.cloneReadOnly());
+                    return new (handler, scopeKey, user.cloneReadOnly(), providerScopes);
                 }
             } else if handler is http:ListenerJwtAuthHandler {
                 jwt:Payload|http:Unauthorized payload = handler.authenticate(request);
                 if payload !is http:Unauthorized {
                     // `jwt:Payload` is an open record, so the check above does not narrow `payload`.
-                    return new (handler, (<jwt:Payload>payload).cloneReadOnly());
+                    return new (handler, scopeKey, (<jwt:Payload>payload).cloneReadOnly(), providerScopes);
                 }
             } else if handler is http:ListenerOAuth2Handler {
                 oauth2:IntrospectionResponse|http:Unauthorized|http:Forbidden response = handler->authorize(request);
                 if response is oauth2:IntrospectionResponse {
-                    return new (self.oauth2ScopeKeys[i], response.cloneReadOnly());
+                    return new (handler, scopeKey, response.cloneReadOnly(), providerScopes);
                 }
             }
         }
@@ -172,32 +202,45 @@ public isolated class Authenticator {
     }
 }
 
+type Provider record {|
+    AuthHandler handler;
+    string scheme;
+    // The scope claim of an OAuth2 introspection response.
+    string scopeKey;
+    readonly & string[]? scopes;
+|};
+
 // The authenticated caller of a request. Its scopes are checked as the handler that authenticated it checks them.
 isolated class Caller {
-    private final AuthHandler|string authority;
+    private final AuthHandler handler;
+    private final string scopeKey;
     private final readonly & (auth:UserDetails|jwt:Payload|oauth2:IntrospectionResponse) details;
+    final readonly & string[]? providerScopes;
 
-    isolated function init(AuthHandler|string authority,
-            readonly & (auth:UserDetails|jwt:Payload|oauth2:IntrospectionResponse) details) {
-        self.authority = authority;
+    isolated function init(AuthHandler handler, string scopeKey,
+            readonly & (auth:UserDetails|jwt:Payload|oauth2:IntrospectionResponse) details,
+            readonly & string[]? providerScopes) {
+        self.handler = handler;
+        self.scopeKey = scopeKey;
         self.details = details;
+        self.providerScopes = providerScopes;
     }
 
     isolated function hasScope(string[] scopes) returns boolean {
-        AuthHandler|string authority = self.authority;
+        AuthHandler handler = self.handler;
         readonly & (auth:UserDetails|jwt:Payload|oauth2:IntrospectionResponse) details = self.details;
-        if authority is http:ListenerFileUserStoreBasicAuthHandler {
-            return authority.authorize(<auth:UserDetails>details, scopes) is ();
+        if handler is http:ListenerFileUserStoreBasicAuthHandler {
+            return handler.authorize(<auth:UserDetails>details, scopes) is ();
         }
-        if authority is http:ListenerLdapUserStoreBasicAuthHandler {
-            http:Forbidden? refused = authority->authorize(<auth:UserDetails>details, scopes);
+        if handler is http:ListenerLdapUserStoreBasicAuthHandler {
+            http:Forbidden? refused = handler->authorize(<auth:UserDetails>details, scopes);
             return refused is ();
         }
-        if authority is http:ListenerJwtAuthHandler {
-            return authority.authorize(<jwt:Payload>details, scopes) is ();
+        if handler is http:ListenerJwtAuthHandler {
+            return handler.authorize(<jwt:Payload>details, scopes) is ();
         }
         // As `http:ListenerOAuth2Handler` does, the scope claim is a space-separated string.
-        anydata held = (<oauth2:IntrospectionResponse>details)[<string>authority];
+        anydata held = (<oauth2:IntrospectionResponse>details)[self.scopeKey];
         if held !is string {
             return false;
         }
