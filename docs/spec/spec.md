@@ -8,7 +8,7 @@ _Edition_: Swan Lake
 
 ## Introduction
 
-This is the specification for the `ballerina/dataservice.http` package of the [Ballerina language](https://ballerina.io/). The package is the HTTP runtime of the data services that `bal persist` generates when `options.dataservice.protocol = "http"`. The generated service is specified in the [persist tool specification](https://github.com/ballerina-platform/persist-tools/blob/main/docs/spec/spec.md#76-the-http-service), and the protocol-neutral runtime in the [`ballerina/dataservice` specification](https://github.com/ballerina-platform/module-ballerina-dataservice/blob/main/docs/spec/spec.md).
+This is the specification for the `ballerina/dataservice.http` package of the [Ballerina language](https://ballerina.io/). The package is the HTTP runtime of the data services that `bal persist` generates when `options.dataservice.protocol = "http"`. The generated service is specified in the [persist tool specification](https://github.com/ballerina-platform/persist-tools/blob/main/docs/spec/spec.md#97-http-service), and the protocol-neutral runtime in the [`ballerina/dataservice` specification](https://github.com/ballerina-platform/module-ballerina-dataservice/blob/main/docs/spec/spec.md).
 
 The conforming implementation of the specification is released and included in the distribution. Any deviation from the specification is considered a bug.
 
@@ -192,7 +192,7 @@ A data service with auth relies on `ballerina/http` declarative auth for the sco
 
 - [BEP 1513: Persist data service over HTTP](https://github.com/ballerina-platform/ballerina-spec/issues/1513)
 - [`ballerina/dataservice` specification](https://github.com/ballerina-platform/module-ballerina-dataservice/blob/main/docs/spec/spec.md)
-- [Persist tool specification, the HTTP service](https://github.com/ballerina-platform/persist-tools/blob/main/docs/spec/spec.md#76-the-http-service)
+- [Persist tool specification, the HTTP service](https://github.com/ballerina-platform/persist-tools/blob/main/docs/spec/spec.md#97-http-service)
 - [RFC 2119: Key words for use in RFCs to Indicate Requirement Levels](https://www.rfc-editor.org/rfc/rfc2119)
 - [RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words](https://www.rfc-editor.org/rfc/rfc8174)
 - [RFC 3986: Uniform Resource Identifier (URI): Generic Syntax](https://www.rfc-editor.org/rfc/rfc3986)
