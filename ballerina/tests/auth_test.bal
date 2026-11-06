@@ -36,7 +36,7 @@ function testAuthProviders() returns error? {
 }
 
 @test:Config {dependsOn: [testAuthProviders]}
-function testAuthorizeRelation() returns error? {
+function testCheckRelationScopes() returns error? {
     _ = check initAuthProviders([
         {fileUserStoreConfig: {}},
         {jwtValidatorConfig: {issuer: "dataservice", signatureConfig: {secret: JWT_SECRET}}}
@@ -54,8 +54,8 @@ function testAuthorizeRelation() returns error? {
     assertForbidden(checkRelationScopes(new, "Employee", "department", "Department", ["departments:read"]));
 }
 
-@test:Config {dependsOn: [testAuthorizeRelation]}
-function testHoldsScope() returns error? {
+@test:Config {dependsOn: [testCheckRelationScopes]}
+function testHasScope() returns error? {
     test:assertTrue(hasScope(basic("reader", "reader-pass"), ["hr:read", "departments:read"]));
     test:assertTrue(hasScope(check bearer("departments:read"), ["departments:read"]));
     test:assertFalse(hasScope(basic("guest", "guest-pass"), ["departments:read"]));
