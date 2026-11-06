@@ -47,6 +47,7 @@ function testInterceptedError(string caller, string method, string path, json? b
     http:Client c = caller == "reader" ? readerClient : caller == "guest" ? guestClient : anonymousClient;
     http:Response response = check c->execute(method, path, body is () ? new http:Request() : body);
     test:assertEquals(response.statusCode, status, path);
+    test:assertEquals(response.getContentType(), "application/json", path);
     json payload = check response.getJsonPayload();
     test:assertEquals(check payload.code, code, path);
     if message != "" {

@@ -23,7 +23,7 @@ public isolated service class ErrorInterceptor {
     *http:ResponseErrorInterceptor;
 
     isolated remote function interceptResponseError(error err, http:Response response) returns http:Response {
-        response.setJsonPayload(errorBody(response.statusCode, err));
+        response.setJsonPayload(errorBody(response.statusCode, err), "application/json");
         return response;
     }
 }
