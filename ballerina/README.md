@@ -1,8 +1,13 @@
-# Ballerina Data Service HTTP Library
-
 ## Overview
 
 The `ballerina/dataservice.http` package is the HTTP runtime of the data services that `bal persist` generates from a persist model. Generated HTTP services call it to build error responses and `Location` headers, so fixes reach them without regeneration.
+
+### Key Features
+
+- Status code records for each response of a data service, with the `DataserviceError` body
+- Mapping of persist and query errors to `400`, `404`, `409` and `500` responses
+- An authenticator that checks Basic, JWT and OAuth2 credentials and each operation's scopes before dispatch
+- `Location` headers for created records, and the runtime settings: port, listener, CORS, auth and page sizes
 
 ## Quick start
 
