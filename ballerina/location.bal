@@ -30,6 +30,10 @@ public isolated function toLocation(string path, dataservice:KeyValue[] key) ret
 }
 
 isolated function encodeSegment(string segment) returns string {
+    // A segment of only dots is a dot-segment, which a client removes when it resolves the URL.
+    if segment == "." || segment == ".." {
+        return segment == "." ? "%2E" : "%2E%2E";
+    }
     string encoded = "";
     foreach string:Char char in segment {
         int codePoint = char.toCodePointInt();

@@ -149,7 +149,7 @@ A generated service declares its runtime settings as one configurable record, `d
 
 1. `toLocation` returns the path of the entity's collection followed by one segment per key value, in key order. The path of the collection includes the service's base path, such as `/api/employees`, or is `/employees` when the base path is `/`.
 2. Each key value is written with `toString`, so `1.5` stays `1.5` and a `decimal` keeps its scale.
-3. The text is percent-encoded as a path segment: every byte of the UTF-8 form of a character other than an RFC 3986 unreserved character (letters, digits, `-`, `.`, `_` and `~`) is written as `%XX`, with upper-case hexadecimal digits.
+3. The text is percent-encoded as a path segment: every byte of the UTF-8 form of a character other than an RFC 3986 unreserved character (letters, digits, `-`, `.`, `_` and `~`) is written as `%XX`, with upper-case hexadecimal digits. A text of `.` or `..` is written as `%2E` or `%2E%2E`, so it is not a dot-segment.
 
 For example, the key `["P 1/a", 1]` of `/api/assignments` gives `/api/assignments/P%201%2Fa/1`, and the key `["é"]` of `/api/codes` gives `/api/codes/%C3%A9`.
 
@@ -193,7 +193,7 @@ The credential is checked once per request. `checkRelationScopes` and `hasScope`
 - A service with auth does not start without at least one authentication provider.
 - A request without a valid credential is answered with `401` before it is dispatched or bound, so binding errors do not reveal the request types to an unauthenticated caller. An `OPTIONS` request needs no credential, and its answer lists only the allowed methods.
 - A relation that needs a scope of the related entity, and the record that patch and delete return, are checked against the credential at runtime, so a caller's `update` or `delete` scope alone does not reveal a record.
-- A key value in `Location` is percent-encoded, so a key cannot add a path segment or a query to the header.
+- A key value in `Location` is percent-encoded, so a key cannot add or remove a path segment, or add a query, to the header.
 
 ## References
 

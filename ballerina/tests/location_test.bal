@@ -41,3 +41,10 @@ function testReservedAndNonAsciiCharacters() {
     test:assertEquals(toLocation("/api/codes", ["a~b_c.d-e"]), "/api/codes/a~b_c.d-e");
     test:assertEquals(toLocation("/api/codes", ["?#%+&=é"]), "/api/codes/%3F%23%25%2B%26%3D%C3%A9");
 }
+
+@test:Config
+function testDotSegmentKeys() {
+    test:assertEquals(toLocation("/api/codes", ["."]), "/api/codes/%2E");
+    test:assertEquals(toLocation("/api/codes", [".."]), "/api/codes/%2E%2E");
+    test:assertEquals(toLocation("/api/codes", ["..."]), "/api/codes/...");
+}
