@@ -33,5 +33,5 @@ isolated function errorBody(int status, error err) returns dataservice:Dataservi
     if status >= 400 && status < 500 {
         return {code: dataservice:INVALID_INPUT, message: err.message()};
     }
-    return dataservice:toErrorBody(err);
+    return dataservice:toInternalErrorBody(err);
 }

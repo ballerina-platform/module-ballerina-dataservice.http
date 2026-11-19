@@ -16,6 +16,7 @@
 
 import ballerina/dataservice;
 import ballerina/http;
+import ballerina/persist;
 import ballerina/test;
 
 type Item record {|
@@ -122,4 +123,11 @@ function testAuthErrorsCarryTheChallengeAndCorsHeaders() returns error? {
     http:Response otherOrigin = check anonymousClient->get("/items/1", {"Origin": "https://other.example.com"});
     test:assertEquals(otherOrigin.statusCode, 401);
     test:assertFalse(otherOrigin.hasHeader("Access-Control-Allow-Origin"));
+}
+
+@test:Config
+function testServerErrorsCarryTheInternalBody() {
+    persist:NotFoundError err = error persist:NotFoundError("missing");
+    test:assertEquals(errorBody(http:STATUS_INTERNAL_SERVER_ERROR, err),
+            {code: dataservice:INTERNAL, message: dataservice:INTERNAL_MESSAGE});
 }
