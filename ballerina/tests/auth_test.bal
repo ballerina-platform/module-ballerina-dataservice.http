@@ -23,15 +23,22 @@ const JWT_SECRET = "dataservice-test-secret";
 
 isolated int introspections = 0;
 
-// An OAuth2 introspection endpoint that knows one active token, and counts the tokens it is sent.
+// An OAuth2 introspection endpoint that knows two active tokens, and counts the tokens it is sent.
 service /oauth2 on new http:Listener(9593) {
     resource function post introspect(http:Request request) returns json|error {
         lock {
             introspections += 1;
         }
         map<string> form = check request.getFormParams();
-        return form["token"] == "departments-token" ? {active: true, scope: "hr:read departments:read"} :
-            {active: false};
+        match form["token"] {
+            "departments-token" => {
+                return {active: true, scope: "hr:read departments:read"};
+            }
+            "tab-token" => {
+                return {active: true, scope: "hr:read\tdepartments:read"};
+            }
+        }
+        return {active: false};
     }
 }
 
@@ -98,7 +105,8 @@ function callers() returns [string, string, boolean][]|error => [
     [check bearer("departments:read"), "departments:read", true],
     [check bearer("employees:read"), "departments:read", false],
     ["Bearer departments-token", "departments:read", true],
-    ["Bearer departments-token", "hr:admin", false]
+    ["Bearer departments-token", "hr:admin", false],
+    ["Bearer tab-token", "departments:read", true]
 ];
 
 @test:Config
