@@ -1,6 +1,9 @@
 # Ballerina Data Service HTTP Library
 
 [![Build](https://github.com/ballerina-platform/module-ballerina-dataservice.http/actions/workflows/build-timestamped-master.yml/badge.svg)](https://github.com/ballerina-platform/module-ballerina-dataservice.http/actions/workflows/build-timestamped-master.yml)
+[![codecov](https://codecov.io/gh/ballerina-platform/module-ballerina-dataservice.http/branch/main/graph/badge.svg)](https://codecov.io/gh/ballerina-platform/module-ballerina-dataservice.http)
+[![Security Scan](https://github.com/ballerina-platform/module-ballerina-dataservice.http/actions/workflows/security-scan.yml/badge.svg)](https://github.com/ballerina-platform/module-ballerina-dataservice.http/actions/workflows/security-scan.yml)
+[![GraalVM Check](https://github.com/ballerina-platform/module-ballerina-dataservice.http/actions/workflows/build-with-bal-test-graalvm.yml/badge.svg)](https://github.com/ballerina-platform/module-ballerina-dataservice.http/actions/workflows/build-with-bal-test-graalvm.yml)
 [![GitHub Last Commit](https://img.shields.io/github/last-commit/ballerina-platform/module-ballerina-dataservice.http.svg)](https://github.com/ballerina-platform/module-ballerina-dataservice.http/commits/main)
 [![GitHub Issues](https://img.shields.io/github/issues/ballerina-platform/ballerina-library/module/dataservice.http.svg?label=Open%20Issues)](https://github.com/ballerina-platform/ballerina-library/labels/module%2Fdataservice.http)
 
@@ -8,7 +11,39 @@
 
 The `ballerina/dataservice.http` package is the HTTP runtime of the data services that `bal persist` generates from a persist model. Generated HTTP services call it to build error responses and `Location` headers, so fixes reach them without regeneration.
 
-The design is in the [HTTP data service proposal](https://github.com/ballerina-platform/ballerina-spec/issues/1513).
+### Key Features
+
+- Status code records for each response of a data service, with the `DataserviceError` body
+- Mapping of persist and query errors to `400`, `404`, `409` and `500` responses
+- An authenticator that checks Basic, JWT and OAuth2 credentials and each operation's scopes before dispatch
+- `Location` headers for created records, and the runtime settings: port, listener, CORS, auth and page sizes
+
+## Quick start
+
+The package is used by generated code, not imported by hand. To generate an HTTP data service:
+
+1. Add the persist entry with an HTTP data service to the package:
+
+    ```bash
+    bal persist add --datastore h2 --dataservice http
+    ```
+
+2. Annotate each entity to expose in `persist/model.bal` with `@dataservice:Expose`.
+
+3. Build and run the package. The service is served on port `9090` under `/api`:
+
+    ```bash
+    bal run
+    curl localhost:9090/api/employees
+    ```
+
+A failed request is answered with a status code and a JSON body that names the error category:
+
+```
+GET /api/employees/99  →  404  {"code": "NOT_FOUND", "message": "A record with the key '99' does not exist for the entity 'Employee'."}
+```
+
+For the details, see the [specification](https://github.com/ballerina-platform/module-ballerina-dataservice.http/blob/main/docs/spec/spec.md).
 
 ## Build from the source
 
