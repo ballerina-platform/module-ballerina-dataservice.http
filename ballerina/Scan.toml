@@ -1,5 +1,0 @@
-# ballerina:13 flags the basic-auth credentials ("reader-pass", "guest-pass", "admin-pass", "wrong") that the tests send
-# to their in-process test services. They are fixtures for the auth tests, not secrets. Only the test sources are left
-# out, so the rule still applies to the library sources.
-[analysis]
-excludeTests = true

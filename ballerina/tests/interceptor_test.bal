@@ -17,6 +17,7 @@
 import ballerina/dataservice;
 import ballerina/http;
 import ballerina/persist;
+import ballerina/scan;
 import ballerina/test;
 
 type Item record {|
@@ -51,13 +52,16 @@ service http:InterceptableService /api on new http:Listener(9591) {
 
     public function createInterceptors() returns [ItemAuthInterceptor, ItemErrorInterceptor] => [new, new];
 
+    @scan:Suppress {rules: [scan:UNUSED_FUNCTION_PARAMETER], reason: "Declared so that an invalid size is rejected as invalid input"}
     resource function get items/[int id](int? size = ()) returns Item => {id, name: "a"};
 
     resource function post items(Item payload) returns Item => payload;
 }
 
+@scan:Suppress {rules: [scan:HARD_CODED_SECRET], reason: "Test-only basic-auth credentials sent to the in-process test services"}
 final http:Client readerClient = check new ("http://localhost:9591/api",
     auth = {username: "reader", password: "reader-pass"});
+@scan:Suppress {rules: [scan:HARD_CODED_SECRET], reason: "Test-only basic-auth credentials sent to the in-process test services"}
 final http:Client guestClient = check new ("http://localhost:9591/api",
     auth = {username: "guest", password: "guest-pass"});
 final http:Client anonymousClient = check new ("http://localhost:9591/api");

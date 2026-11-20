@@ -17,6 +17,7 @@
 import ballerina/http;
 import ballerina/jwt;
 import ballerina/lang.array;
+import ballerina/scan;
 import ballerina/test;
 
 const JWT_SECRET = "dataservice-test-secret";
@@ -99,6 +100,7 @@ function testCheckRelationScopes(string authorization, string scope, boolean exp
     });
 }
 
+@scan:Suppress {rules: [scan:HARD_CODED_SECRET], reason: "Test-only basic-auth credentials sent to the in-process test services"}
 function callers() returns [string, string, boolean][]|error => [
     [basic("reader", "reader-pass"), "departments:read", true],
     [basic("guest", "guest-pass"), "departments:read", false],
@@ -109,6 +111,7 @@ function callers() returns [string, string, boolean][]|error => [
     ["Bearer tab-token", "departments:read", true]
 ];
 
+@scan:Suppress {rules: [scan:HARD_CODED_SECRET], reason: "Test-only basic-auth credentials sent to the in-process test services"}
 @test:Config
 function testInvalidCredentialIsUnauthenticated() returns error? {
     http:Client c = check new ("http://localhost:9592/scopes");
@@ -142,6 +145,7 @@ function testChallengeOfEachProviderKind() returns error? {
             ["Basic realm=\"dataservice\"", "Bearer realm=\"dataservice\""]);
 }
 
+@scan:Suppress {rules: [scan:HARD_CODED_SECRET], reason: "Test-only basic-auth credentials sent to the in-process test services"}
 @test:Config
 function testBasicCredentialIsNotIntrospected() returns error? {
     int before;
@@ -193,6 +197,7 @@ function providerScopeCases() returns [string, string, int][] => [
     ["reader", "/guarded", 403]
 ];
 
+@scan:Suppress {rules: [scan:HARD_CODED_SECRET], reason: "Test-only basic-auth credentials sent to the in-process test services"}
 @test:Config
 function testEmptyScopesTakeTheProviderScopes() returns error? {
     // The provider sets departments:read, which admin does not hold.

@@ -91,6 +91,7 @@ dependencies = [
 	{org = "ballerina", name = "log"},
 	{org = "ballerina", name = "oauth2"},
 	{org = "ballerina", name = "persist"},
+	{org = "ballerina", name = "scan"},
 	{org = "ballerina", name = "test"}
 ]
 modules = [
@@ -329,6 +330,15 @@ dependencies = [
 ]
 modules = [
 	{org = "ballerina", packageName = "persist", moduleName = "persist"}
+]
+
+[[package]]
+org = "ballerina"
+name = "scan"
+version = "1.0.0"
+scope = "testOnly"
+modules = [
+	{org = "ballerina", packageName = "scan", moduleName = "scan"}
 ]
 
 [[package]]
