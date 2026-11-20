@@ -61,6 +61,8 @@ ballerina {
     module = packageName
     langVersion = ballerinaLangVersion
     platform = "any"
+    // The classes are under `ballerina.dataservice&0046http`, which the default `ballerina.dataservice.http.*` misses.
+    testCoverageParam = "--code-coverage --coverage-format=xml --includes=ballerina.dataservice?0046http*"
 }
 
 task updateTomlFiles {
