@@ -54,6 +54,9 @@ def stripBallerinaExtensionVersion(String extVersion) {
 
 dependencies {
     ballerinaStdLibs "io.ballerina.lib:dataservice-ballerina:${stdlibDataserviceVersion}"
+    ballerinaStdLibs "org.ballerinalang:transaction-ballerina:${stdlibTransactionVersion}"
+    ballerinaStdLibs "io.ballerina.stdlib:observe-ballerina:${observeVersion}"
+    ballerinaStdLibs "io.ballerina:observe-ballerina:${observeInternalVersion}"
 }
 
 ballerina {
