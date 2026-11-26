@@ -3,11 +3,11 @@ list_20	GET	/api/salesOrders?size=20&offset=${__Random(0,1000)}
 list_100	GET	/api/salesOrders?size=100&offset=${__Random(0,1000)}	
 filter_sort	GET	/api/salesOrders?filter=%7B%22status%22%3A%7B%22eq%22%3A%22PAID%22%7D%7D&sort=-placedOn&size=20&offset=${__Random(0,1000)}	
 to_one	GET	/api/salesOrders/${__Random(1,ORDERS)}?fields=status,total,customer	
-to_many_20	GET	/api/salesOrders?size=20&offset=${__Random(0,1000)}&fields=status,total,items	
-to_many_100	GET	/api/salesOrders?size=100&offset=${__Random(0,1000)}&fields=status,total,items	
 many_to_many	GET	/api/orderItems?filter=%7B%22salesorderId%22%3A%7B%22eq%22%3A${__Random(1,ORDERS)}%7D%7D&fields=quantity,product.name	
 many_to_many_rev	GET	/api/products/${__Random(1,ORDERS)}?fields=name,orderItems	
 wide_2_fields	GET	/api/products?size=100&offset=${__Random(0,1000)}&fields=name,num01	
 wide_all	GET	/api/products?size=100&offset=${__Random(0,1000)}	
 create	POST	/api/customers	{"id":${__Random(10000000,2000000000)},"name":"n","email":"e@example.com","country":"LK","tier":1}
 patch	PATCH	/api/customers/${__Random(1,1000)}	{"tier":${__Random(1,4)}}
+to_many_20	GET	/api/salesOrders?size=20&offset=${__Random(0,1000)}&fields=status,total,items	
+to_many_100	GET	/api/salesOrders?size=100&offset=${__Random(0,1000)}&fields=status,total,items	

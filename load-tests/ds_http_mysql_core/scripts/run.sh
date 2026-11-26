@@ -11,7 +11,7 @@ orders=100000
 
 echo "Waiting for the service and the seeded database"
 for i in $(seq 360); do
-    code=$(curl -s -o /dev/null -w '%{http_code}' "http://bal.perf.test/api/customers/1" || true)
+    code=$(curl -s --connect-timeout 5 --max-time 10 -o /dev/null -w '%{http_code}' "http://bal.perf.test/api/customers/1" || true)
     [[ "$code" == "200" ]] && break
     sleep 10
 done
@@ -30,27 +30,30 @@ while IFS=$'\t' read -r name method path body; do
     jmeter -n -t "$scriptsDir/request.jmx" -l "$jtl" -Jusers="$users" -Jduration="$duration" -JrampUpPeriod=30 \
         -Jhost=bal.perf.test -Jport=80 -Jprotocol=http -Jmethod="$method" \
         -Jpath="${path//ORDERS/$orders}" -Jbody="${body//ORDERS/$orders}" \
-        -Jjmeter.save.saveservice.output_format=csv -Jjmeter.save.saveservice.print_field_names=true
+        -Jjmeter.save.saveservice.output_format=csv -Jjmeter.save.saveservice.print_field_names=true \
+        -Jsampleresult.timestamp.start=true
+    # The samples are sorted by elapsed time with sort, since the awk of the JMeter image has no asort.
     row=$(awk -F',' -v warmup="$warmup" '
-        function at(q,  i) { i = int(n * q); return i < 1 ? 1 : i }
         NR == 1 { for (i = 1; i <= NF; i++) col[$i] = i; next }
         first == "" { first = $col["timeStamp"] }
         $col["timeStamp"] - first < warmup * 1000 { next }
+        { print $col["elapsed"] "," $col["timeStamp"] "," $col["bytes"] "," $col["success"] }' "$jtl" |
+        sort -t',' -k1,1n | awk -F',' '
+        function at(q,  i) { i = int(n * q); return i < 1 ? 1 : i }
         {
-            n++; t = $col["elapsed"]; sum += t; sumsq += t * t; times[n] = t; last = $col["timeStamp"]
-            bytes += $col["bytes"]
-            if ($col["success"] != "true") errors++
-            if (start == "") start = $col["timeStamp"]
+            n++; t = $1; sum += t; sumsq += t * t; times[n] = t; bytes += $3
+            if (start == "" || $2 < start) start = $2
+            if ($2 + $1 > last) last = $2 + $1
+            if ($4 != "true") errors++
         }
         END {
             if (n == 0) { print "0,0,0,0,0,0,0,0,100.00%,0,0,0"; exit }
-            asort(times)
             span = (last - start) / 1000; if (span <= 0) span = 1
             avg = sum / n; sd = sqrt(sumsq / n - avg * avg)
             printf "%d,%.0f,%d,%d,%d,%d,%d,%d,%.2f%%,%.1f,%.1f,%.2f", n, avg, times[at(0.5)], times[at(0.9)],
                 times[at(0.95)], times[at(0.99)], times[1], times[n], 100 * errors / n, n / span,
                 bytes / 1024 / span, sd
-        }' "$jtl")
+        }')
     echo "$name,$row,$(date +%s),0,$users" >> "$summary"
     echo "PERF_RESULT,$test_name,$name,$users,$row"
     rm -f "$jtl"
