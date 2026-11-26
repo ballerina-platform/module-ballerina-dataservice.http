@@ -1,0 +1,9 @@
+[ds_http_mysql_core]
+host = "perf-db"
+port = 3306
+user = "root"
+password = "password"
+database = "perf"
+
+[ds_http_mysql_core.dataserviceConfig]
+port = 9090
