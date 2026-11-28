@@ -9,22 +9,16 @@ import ballerina/http;
 import ballerina/time;
 
 # A list of customers.
-#
-# + items - The customers
-# + hasMore - Whether records exist after this page
 public type CustomerList record {
+    # The customers
     Customer[] items;
+    # Whether records exist after this page
     boolean hasMore;
 };
 
 # The conditions that customers match, as the `filter` query parameter holds them.
-#
-# + id - The conditions on the `id` field
-# + name - The conditions on the `name` field
-# + email - The conditions on the `email` field
-# + country - The conditions on the `country` field
-# + tier - The conditions on the `tier` field
 public type CustomerFilter record {|
+    # The conditions on the `id` field
     record {|
         int eq?;
         int ne?;
@@ -34,6 +28,7 @@ public type CustomerFilter record {|
         int gte?;
         int[] anyOf?;
     |} id?;
+    # The conditions on the `name` field
     record {|
         string eq?;
         string ne?;
@@ -45,6 +40,7 @@ public type CustomerFilter record {|
         string contains?;
         string startsWith?;
     |} name?;
+    # The conditions on the `email` field
     record {|
         string eq?;
         string ne?;
@@ -56,6 +52,7 @@ public type CustomerFilter record {|
         string contains?;
         string startsWith?;
     |} email?;
+    # The conditions on the `country` field
     record {|
         string eq?;
         string ne?;
@@ -67,6 +64,7 @@ public type CustomerFilter record {|
         string contains?;
         string startsWith?;
     |} country?;
+    # The conditions on the `tier` field
     record {|
         int eq?;
         int ne?;
@@ -79,43 +77,40 @@ public type CustomerFilter record {|
 |};
 
 # A customer with the fields named in the `fields` query parameter.
-#
-# + id - The `id` field of `Customer`
-# + name - The `name` field of `Customer`
-# + email - The `email` field of `Customer`
-# + country - The `country` field of `Customer`
-# + tier - The `tier` field of `Customer`
-# + orders - The related sales orders, when `fields` names them
 public type CustomerPartial record {|
+    # The `id` field of `Customer`
     int id;
+    # The `name` field of `Customer`
     string name?;
+    # The `email` field of `Customer`
     string email?;
+    # The `country` field of `Customer`
     string country?;
+    # The `tier` field of `Customer`
     int tier?;
+    # The related sales orders, when `fields` names them
     SalesOrderRelatedPartialList orders?;
 |};
 
 # A list of customers with the fields named in the `fields` query parameter.
-#
-# + items - The customers
-# + hasMore - Whether records exist after this page
 public type CustomerPartialList record {
+    # The customers
     CustomerPartial[] items;
+    # Whether records exist after this page
     boolean hasMore;
 };
 
 # A customer read through a relation, with the fields named in the `fields` query parameter.
-#
-# + id - The `id` field of `Customer`
-# + name - The `name` field of `Customer`
-# + email - The `email` field of `Customer`
-# + country - The `country` field of `Customer`
-# + tier - The `tier` field of `Customer`
 public type CustomerRelatedPartial record {|
+    # The `id` field of `Customer`
     int id;
+    # The `name` field of `Customer`
     string name?;
+    # The `email` field of `Customer`
     string email?;
+    # The `country` field of `Customer`
     string country?;
+    # The `tier` field of `Customer`
     int tier?;
 |};
 
@@ -153,33 +148,30 @@ final dataservice:Entity dataserviceCustomerEntity = {
 };
 
 # The response to creating one customer.
-#
-# + body - The created customer
 public type CustomerCreated record {|
     *http:Created;
+    # The created customer
     Customer body;
 |};
 
 # The response to creating several customers.
-#
-# + body - The created customers
 public type CustomerListCreated record {|
     *http:Created;
+    # The created customers
     CustomerList body;
 |};
 
 # The JSON form of `SalesOrder`.
-#
-# + id - The `id` field of `SalesOrder`
-# + status - The `status` field of `SalesOrder`
-# + total - The `total` field of `SalesOrder`
-# + placedOn - The `placedOn` field of `SalesOrder`, as an ISO 8601 date
-# + customerId - The key of the related 'Customer'.
 public type SalesOrderPayload record {|
+    # The `id` field of `SalesOrder`
     readonly int id;
+    # The `status` field of `SalesOrder`
     string status;
+    # The `total` field of `SalesOrder`
     decimal total;
+    # The `placedOn` field of `SalesOrder`, as an ISO 8601 date
     string placedOn;
+    # The key of the related 'Customer'.
     int customerId;
 |};
 
@@ -187,35 +179,28 @@ public type SalesOrderPayload record {|
 public type SalesOrderInsertPayload SalesOrderPayload;
 
 # The JSON form of `SalesOrderUpdate`.
-#
-# + status - The `status` field of `SalesOrderUpdate`
-# + total - The `total` field of `SalesOrderUpdate`
-# + placedOn - The `placedOn` field of `SalesOrderUpdate`, as an ISO 8601 date
-# + customerId - The key of the related 'Customer'.
 public type SalesOrderUpdatePayload record {|
+    # The `status` field of `SalesOrderUpdate`
     string status?;
+    # The `total` field of `SalesOrderUpdate`
     decimal total?;
+    # The `placedOn` field of `SalesOrderUpdate`, as an ISO 8601 date
     string placedOn?;
+    # The key of the related 'Customer'.
     int customerId?;
 |};
 
 # A list of sales orders.
-#
-# + items - The sales orders
-# + hasMore - Whether records exist after this page
 public type SalesOrderList record {
+    # The sales orders
     SalesOrderPayload[] items;
+    # Whether records exist after this page
     boolean hasMore;
 };
 
 # The conditions that sales orders match, as the `filter` query parameter holds them.
-#
-# + id - The conditions on the `id` field
-# + status - The conditions on the `status` field
-# + total - The conditions on the `total` field
-# + placedOn - The conditions on the `placedOn` field
-# + customerId - The conditions on the `customerId` field
 public type SalesOrderFilter record {|
+    # The conditions on the `id` field
     record {|
         int eq?;
         int ne?;
@@ -225,6 +210,7 @@ public type SalesOrderFilter record {|
         int gte?;
         int[] anyOf?;
     |} id?;
+    # The conditions on the `status` field
     record {|
         string eq?;
         string ne?;
@@ -236,6 +222,7 @@ public type SalesOrderFilter record {|
         string contains?;
         string startsWith?;
     |} status?;
+    # The conditions on the `total` field
     record {|
         decimal eq?;
         decimal ne?;
@@ -245,6 +232,7 @@ public type SalesOrderFilter record {|
         decimal gte?;
         decimal[] anyOf?;
     |} total?;
+    # The conditions on the `placedOn` field
     record {|
         string eq?;
         string ne?;
@@ -254,6 +242,7 @@ public type SalesOrderFilter record {|
         string gte?;
         string[] anyOf?;
     |} placedOn?;
+    # The conditions on the `customerId` field
     record {|
         int eq?;
         int ne?;
@@ -266,54 +255,50 @@ public type SalesOrderFilter record {|
 |};
 
 # A sales order with the fields named in the `fields` query parameter.
-#
-# + id - The `id` field of `SalesOrder`
-# + status - The `status` field of `SalesOrder`
-# + total - The `total` field of `SalesOrder`
-# + placedOn - The `placedOn` field of `SalesOrder`, as an ISO 8601 date
-# + customerId - The key of the related 'Customer'.
-# + customer - The related customer, when `fields` names it
-# + items - The related order items, when `fields` names them
 public type SalesOrderPartial record {|
+    # The `id` field of `SalesOrder`
     int id;
+    # The `status` field of `SalesOrder`
     string status?;
+    # The `total` field of `SalesOrder`
     decimal total?;
+    # The `placedOn` field of `SalesOrder`, as an ISO 8601 date
     string placedOn?;
+    # The key of the related 'Customer'.
     int customerId?;
+    # The related customer, when `fields` names it
     CustomerRelatedPartial? customer?;
+    # The related order items, when `fields` names them
     OrderItemRelatedPartialList items?;
 |};
 
 # A list of sales orders with the fields named in the `fields` query parameter.
-#
-# + items - The sales orders
-# + hasMore - Whether records exist after this page
 public type SalesOrderPartialList record {
+    # The sales orders
     SalesOrderPartial[] items;
+    # Whether records exist after this page
     boolean hasMore;
 };
 
 # A sales order read through a relation, with the fields named in the `fields` query parameter.
-#
-# + id - The `id` field of `SalesOrder`
-# + status - The `status` field of `SalesOrder`
-# + total - The `total` field of `SalesOrder`
-# + placedOn - The `placedOn` field of `SalesOrder`, as an ISO 8601 date
-# + customerId - The key of the related 'Customer'.
 public type SalesOrderRelatedPartial record {|
+    # The `id` field of `SalesOrder`
     int id;
+    # The `status` field of `SalesOrder`
     string status?;
+    # The `total` field of `SalesOrder`
     decimal total?;
+    # The `placedOn` field of `SalesOrder`, as an ISO 8601 date
     string placedOn?;
+    # The key of the related 'Customer'.
     int customerId?;
 |};
 
 # The sales orders read through a relation, with the fields named in the `fields` query parameter.
-#
-# + items - The sales orders, at most `dataserviceConfig.pageSize`
-# + hasMore - Whether more sales orders exist
 public type SalesOrderRelatedPartialList record {
+    # The sales orders, at most `dataserviceConfig.pageSize`
     SalesOrderRelatedPartial[] items;
+    # Whether more sales orders exist
     boolean hasMore;
 };
 
@@ -364,18 +349,16 @@ final dataservice:Entity dataserviceSalesOrderEntity = {
 };
 
 # The response to creating one sales order.
-#
-# + body - The created sales order
 public type SalesOrderCreated record {|
     *http:Created;
+    # The created sales order
     SalesOrderPayload body;
 |};
 
 # The response to creating several sales orders.
-#
-# + body - The created sales orders
 public type SalesOrderListCreated record {|
     *http:Created;
+    # The created sales orders
     SalesOrderList body;
 |};
 
@@ -435,23 +418,16 @@ isolated function transformPayloadToSalesOrderUpdate(SalesOrderUpdatePayload pay
 }
 
 # A list of order items.
-#
-# + items - The order items
-# + hasMore - Whether records exist after this page
 public type OrderItemList record {
+    # The order items
     OrderItem[] items;
+    # Whether records exist after this page
     boolean hasMore;
 };
 
 # The conditions that order items match, as the `filter` query parameter holds them.
-#
-# + id - The conditions on the `id` field
-# + sku - The conditions on the `sku` field
-# + quantity - The conditions on the `quantity` field
-# + price - The conditions on the `price` field
-# + salesorderId - The conditions on the `salesorderId` field
-# + productId - The conditions on the `productId` field
 public type OrderItemFilter record {|
+    # The conditions on the `id` field
     record {|
         int eq?;
         int ne?;
@@ -461,6 +437,7 @@ public type OrderItemFilter record {|
         int gte?;
         int[] anyOf?;
     |} id?;
+    # The conditions on the `sku` field
     record {|
         string eq?;
         string ne?;
@@ -472,6 +449,7 @@ public type OrderItemFilter record {|
         string contains?;
         string startsWith?;
     |} sku?;
+    # The conditions on the `quantity` field
     record {|
         int eq?;
         int ne?;
@@ -481,6 +459,7 @@ public type OrderItemFilter record {|
         int gte?;
         int[] anyOf?;
     |} quantity?;
+    # The conditions on the `price` field
     record {|
         decimal eq?;
         decimal ne?;
@@ -490,6 +469,7 @@ public type OrderItemFilter record {|
         decimal gte?;
         decimal[] anyOf?;
     |} price?;
+    # The conditions on the `salesorderId` field
     record {|
         int eq?;
         int ne?;
@@ -499,6 +479,7 @@ public type OrderItemFilter record {|
         int gte?;
         int[] anyOf?;
     |} salesorderId?;
+    # The conditions on the `productId` field
     record {|
         int eq?;
         int ne?;
@@ -511,58 +492,54 @@ public type OrderItemFilter record {|
 |};
 
 # An order item with the fields named in the `fields` query parameter.
-#
-# + id - The `id` field of `OrderItem`
-# + sku - The `sku` field of `OrderItem`
-# + quantity - The `quantity` field of `OrderItem`
-# + price - The `price` field of `OrderItem`
-# + salesorderId - The key of the related 'SalesOrder'.
-# + productId - The key of the related 'Product'.
-# + salesOrder - The related sales order, when `fields` names it
-# + product - The related product, when `fields` names it
 public type OrderItemPartial record {|
+    # The `id` field of `OrderItem`
     int id;
+    # The `sku` field of `OrderItem`
     string sku?;
+    # The `quantity` field of `OrderItem`
     int quantity?;
+    # The `price` field of `OrderItem`
     decimal price?;
+    # The key of the related 'SalesOrder'.
     int salesorderId?;
+    # The key of the related 'Product'.
     int productId?;
+    # The related sales order, when `fields` names it
     SalesOrderRelatedPartial? salesOrder?;
+    # The related product, when `fields` names it
     ProductRelatedPartial? product?;
 |};
 
 # A list of order items with the fields named in the `fields` query parameter.
-#
-# + items - The order items
-# + hasMore - Whether records exist after this page
 public type OrderItemPartialList record {
+    # The order items
     OrderItemPartial[] items;
+    # Whether records exist after this page
     boolean hasMore;
 };
 
 # An order item read through a relation, with the fields named in the `fields` query parameter.
-#
-# + id - The `id` field of `OrderItem`
-# + sku - The `sku` field of `OrderItem`
-# + quantity - The `quantity` field of `OrderItem`
-# + price - The `price` field of `OrderItem`
-# + salesorderId - The key of the related 'SalesOrder'.
-# + productId - The key of the related 'Product'.
 public type OrderItemRelatedPartial record {|
+    # The `id` field of `OrderItem`
     int id;
+    # The `sku` field of `OrderItem`
     string sku?;
+    # The `quantity` field of `OrderItem`
     int quantity?;
+    # The `price` field of `OrderItem`
     decimal price?;
+    # The key of the related 'SalesOrder'.
     int salesorderId?;
+    # The key of the related 'Product'.
     int productId?;
 |};
 
 # The order items read through a relation, with the fields named in the `fields` query parameter.
-#
-# + items - The order items, at most `dataserviceConfig.pageSize`
-# + hasMore - Whether more order items exist
 public type OrderItemRelatedPartialList record {
+    # The order items, at most `dataserviceConfig.pageSize`
     OrderItemRelatedPartial[] items;
+    # Whether more order items exist
     boolean hasMore;
 };
 
@@ -614,63 +591,30 @@ final dataservice:Entity dataserviceOrderItemEntity = {
 };
 
 # The response to creating one order item.
-#
-# + body - The created order item
 public type OrderItemCreated record {|
     *http:Created;
+    # The created order item
     OrderItem body;
 |};
 
 # The response to creating several order items.
-#
-# + body - The created order items
 public type OrderItemListCreated record {|
     *http:Created;
+    # The created order items
     OrderItemList body;
 |};
 
 # A list of products.
-#
-# + items - The products
-# + hasMore - Whether records exist after this page
 public type ProductList record {
+    # The products
     Product[] items;
+    # Whether records exist after this page
     boolean hasMore;
 };
 
 # The conditions that products match, as the `filter` query parameter holds them.
-#
-# + id - The conditions on the `id` field
-# + name - The conditions on the `name` field
-# + description - The conditions on the `description` field
-# + attr01 - The conditions on the `attr01` field
-# + attr02 - The conditions on the `attr02` field
-# + attr03 - The conditions on the `attr03` field
-# + attr04 - The conditions on the `attr04` field
-# + attr05 - The conditions on the `attr05` field
-# + attr06 - The conditions on the `attr06` field
-# + attr07 - The conditions on the `attr07` field
-# + attr08 - The conditions on the `attr08` field
-# + attr09 - The conditions on the `attr09` field
-# + attr10 - The conditions on the `attr10` field
-# + attr11 - The conditions on the `attr11` field
-# + attr12 - The conditions on the `attr12` field
-# + attr13 - The conditions on the `attr13` field
-# + attr14 - The conditions on the `attr14` field
-# + num01 - The conditions on the `num01` field
-# + num02 - The conditions on the `num02` field
-# + num03 - The conditions on the `num03` field
-# + num04 - The conditions on the `num04` field
-# + num05 - The conditions on the `num05` field
-# + num06 - The conditions on the `num06` field
-# + num07 - The conditions on the `num07` field
-# + dec01 - The conditions on the `dec01` field
-# + dec02 - The conditions on the `dec02` field
-# + dec03 - The conditions on the `dec03` field
-# + dec04 - The conditions on the `dec04` field
-# + dec05 - The conditions on the `dec05` field
-# + dec06 - The conditions on the `dec06` field
 public type ProductFilter record {|
+    # The conditions on the `id` field
     record {|
         int eq?;
         int ne?;
@@ -680,6 +624,7 @@ public type ProductFilter record {|
         int gte?;
         int[] anyOf?;
     |} id?;
+    # The conditions on the `name` field
     record {|
         string eq?;
         string ne?;
@@ -691,6 +636,7 @@ public type ProductFilter record {|
         string contains?;
         string startsWith?;
     |} name?;
+    # The conditions on the `description` field
     record {|
         string eq?;
         string ne?;
@@ -702,6 +648,7 @@ public type ProductFilter record {|
         string contains?;
         string startsWith?;
     |} description?;
+    # The conditions on the `attr01` field
     record {|
         string eq?;
         string ne?;
@@ -713,6 +660,7 @@ public type ProductFilter record {|
         string contains?;
         string startsWith?;
     |} attr01?;
+    # The conditions on the `attr02` field
     record {|
         string eq?;
         string ne?;
@@ -724,6 +672,7 @@ public type ProductFilter record {|
         string contains?;
         string startsWith?;
     |} attr02?;
+    # The conditions on the `attr03` field
     record {|
         string eq?;
         string ne?;
@@ -735,6 +684,7 @@ public type ProductFilter record {|
         string contains?;
         string startsWith?;
     |} attr03?;
+    # The conditions on the `attr04` field
     record {|
         string eq?;
         string ne?;
@@ -746,6 +696,7 @@ public type ProductFilter record {|
         string contains?;
         string startsWith?;
     |} attr04?;
+    # The conditions on the `attr05` field
     record {|
         string eq?;
         string ne?;
@@ -757,6 +708,7 @@ public type ProductFilter record {|
         string contains?;
         string startsWith?;
     |} attr05?;
+    # The conditions on the `attr06` field
     record {|
         string eq?;
         string ne?;
@@ -768,6 +720,7 @@ public type ProductFilter record {|
         string contains?;
         string startsWith?;
     |} attr06?;
+    # The conditions on the `attr07` field
     record {|
         string eq?;
         string ne?;
@@ -779,6 +732,7 @@ public type ProductFilter record {|
         string contains?;
         string startsWith?;
     |} attr07?;
+    # The conditions on the `attr08` field
     record {|
         string eq?;
         string ne?;
@@ -790,6 +744,7 @@ public type ProductFilter record {|
         string contains?;
         string startsWith?;
     |} attr08?;
+    # The conditions on the `attr09` field
     record {|
         string eq?;
         string ne?;
@@ -801,6 +756,7 @@ public type ProductFilter record {|
         string contains?;
         string startsWith?;
     |} attr09?;
+    # The conditions on the `attr10` field
     record {|
         string eq?;
         string ne?;
@@ -812,6 +768,7 @@ public type ProductFilter record {|
         string contains?;
         string startsWith?;
     |} attr10?;
+    # The conditions on the `attr11` field
     record {|
         string eq?;
         string ne?;
@@ -823,6 +780,7 @@ public type ProductFilter record {|
         string contains?;
         string startsWith?;
     |} attr11?;
+    # The conditions on the `attr12` field
     record {|
         string eq?;
         string ne?;
@@ -834,6 +792,7 @@ public type ProductFilter record {|
         string contains?;
         string startsWith?;
     |} attr12?;
+    # The conditions on the `attr13` field
     record {|
         string eq?;
         string ne?;
@@ -845,6 +804,7 @@ public type ProductFilter record {|
         string contains?;
         string startsWith?;
     |} attr13?;
+    # The conditions on the `attr14` field
     record {|
         string eq?;
         string ne?;
@@ -856,6 +816,7 @@ public type ProductFilter record {|
         string contains?;
         string startsWith?;
     |} attr14?;
+    # The conditions on the `num01` field
     record {|
         int eq?;
         int ne?;
@@ -865,6 +826,7 @@ public type ProductFilter record {|
         int gte?;
         int[] anyOf?;
     |} num01?;
+    # The conditions on the `num02` field
     record {|
         int eq?;
         int ne?;
@@ -874,6 +836,7 @@ public type ProductFilter record {|
         int gte?;
         int[] anyOf?;
     |} num02?;
+    # The conditions on the `num03` field
     record {|
         int eq?;
         int ne?;
@@ -883,6 +846,7 @@ public type ProductFilter record {|
         int gte?;
         int[] anyOf?;
     |} num03?;
+    # The conditions on the `num04` field
     record {|
         int eq?;
         int ne?;
@@ -892,6 +856,7 @@ public type ProductFilter record {|
         int gte?;
         int[] anyOf?;
     |} num04?;
+    # The conditions on the `num05` field
     record {|
         int eq?;
         int ne?;
@@ -901,6 +866,7 @@ public type ProductFilter record {|
         int gte?;
         int[] anyOf?;
     |} num05?;
+    # The conditions on the `num06` field
     record {|
         int eq?;
         int ne?;
@@ -910,6 +876,7 @@ public type ProductFilter record {|
         int gte?;
         int[] anyOf?;
     |} num06?;
+    # The conditions on the `num07` field
     record {|
         int eq?;
         int ne?;
@@ -919,6 +886,7 @@ public type ProductFilter record {|
         int gte?;
         int[] anyOf?;
     |} num07?;
+    # The conditions on the `dec01` field
     record {|
         decimal eq?;
         decimal ne?;
@@ -928,6 +896,7 @@ public type ProductFilter record {|
         decimal gte?;
         decimal[] anyOf?;
     |} dec01?;
+    # The conditions on the `dec02` field
     record {|
         decimal eq?;
         decimal ne?;
@@ -937,6 +906,7 @@ public type ProductFilter record {|
         decimal gte?;
         decimal[] anyOf?;
     |} dec02?;
+    # The conditions on the `dec03` field
     record {|
         decimal eq?;
         decimal ne?;
@@ -946,6 +916,7 @@ public type ProductFilter record {|
         decimal gte?;
         decimal[] anyOf?;
     |} dec03?;
+    # The conditions on the `dec04` field
     record {|
         decimal eq?;
         decimal ne?;
@@ -955,6 +926,7 @@ public type ProductFilter record {|
         decimal gte?;
         decimal[] anyOf?;
     |} dec04?;
+    # The conditions on the `dec05` field
     record {|
         decimal eq?;
         decimal ne?;
@@ -964,6 +936,7 @@ public type ProductFilter record {|
         decimal gte?;
         decimal[] anyOf?;
     |} dec05?;
+    # The conditions on the `dec06` field
     record {|
         decimal eq?;
         decimal ne?;
@@ -976,143 +949,140 @@ public type ProductFilter record {|
 |};
 
 # A product with the fields named in the `fields` query parameter.
-#
-# + id - The `id` field of `Product`
-# + name - The `name` field of `Product`
-# + description - The `description` field of `Product`
-# + attr01 - The `attr01` field of `Product`
-# + attr02 - The `attr02` field of `Product`
-# + attr03 - The `attr03` field of `Product`
-# + attr04 - The `attr04` field of `Product`
-# + attr05 - The `attr05` field of `Product`
-# + attr06 - The `attr06` field of `Product`
-# + attr07 - The `attr07` field of `Product`
-# + attr08 - The `attr08` field of `Product`
-# + attr09 - The `attr09` field of `Product`
-# + attr10 - The `attr10` field of `Product`
-# + attr11 - The `attr11` field of `Product`
-# + attr12 - The `attr12` field of `Product`
-# + attr13 - The `attr13` field of `Product`
-# + attr14 - The `attr14` field of `Product`
-# + num01 - The `num01` field of `Product`
-# + num02 - The `num02` field of `Product`
-# + num03 - The `num03` field of `Product`
-# + num04 - The `num04` field of `Product`
-# + num05 - The `num05` field of `Product`
-# + num06 - The `num06` field of `Product`
-# + num07 - The `num07` field of `Product`
-# + dec01 - The `dec01` field of `Product`
-# + dec02 - The `dec02` field of `Product`
-# + dec03 - The `dec03` field of `Product`
-# + dec04 - The `dec04` field of `Product`
-# + dec05 - The `dec05` field of `Product`
-# + dec06 - The `dec06` field of `Product`
-# + orderItems - The related order items, when `fields` names them
 public type ProductPartial record {|
+    # The `id` field of `Product`
     int id;
+    # The `name` field of `Product`
     string name?;
+    # The `description` field of `Product`
     string description?;
+    # The `attr01` field of `Product`
     string attr01?;
+    # The `attr02` field of `Product`
     string attr02?;
+    # The `attr03` field of `Product`
     string attr03?;
+    # The `attr04` field of `Product`
     string attr04?;
+    # The `attr05` field of `Product`
     string attr05?;
+    # The `attr06` field of `Product`
     string attr06?;
+    # The `attr07` field of `Product`
     string attr07?;
+    # The `attr08` field of `Product`
     string attr08?;
+    # The `attr09` field of `Product`
     string attr09?;
+    # The `attr10` field of `Product`
     string attr10?;
+    # The `attr11` field of `Product`
     string attr11?;
+    # The `attr12` field of `Product`
     string attr12?;
+    # The `attr13` field of `Product`
     string attr13?;
+    # The `attr14` field of `Product`
     string attr14?;
+    # The `num01` field of `Product`
     int num01?;
+    # The `num02` field of `Product`
     int num02?;
+    # The `num03` field of `Product`
     int num03?;
+    # The `num04` field of `Product`
     int num04?;
+    # The `num05` field of `Product`
     int num05?;
+    # The `num06` field of `Product`
     int num06?;
+    # The `num07` field of `Product`
     int num07?;
+    # The `dec01` field of `Product`
     decimal dec01?;
+    # The `dec02` field of `Product`
     decimal dec02?;
+    # The `dec03` field of `Product`
     decimal dec03?;
+    # The `dec04` field of `Product`
     decimal dec04?;
+    # The `dec05` field of `Product`
     decimal dec05?;
+    # The `dec06` field of `Product`
     decimal dec06?;
+    # The related order items, when `fields` names them
     OrderItemRelatedPartialList orderItems?;
 |};
 
 # A list of products with the fields named in the `fields` query parameter.
-#
-# + items - The products
-# + hasMore - Whether records exist after this page
 public type ProductPartialList record {
+    # The products
     ProductPartial[] items;
+    # Whether records exist after this page
     boolean hasMore;
 };
 
 # A product read through a relation, with the fields named in the `fields` query parameter.
-#
-# + id - The `id` field of `Product`
-# + name - The `name` field of `Product`
-# + description - The `description` field of `Product`
-# + attr01 - The `attr01` field of `Product`
-# + attr02 - The `attr02` field of `Product`
-# + attr03 - The `attr03` field of `Product`
-# + attr04 - The `attr04` field of `Product`
-# + attr05 - The `attr05` field of `Product`
-# + attr06 - The `attr06` field of `Product`
-# + attr07 - The `attr07` field of `Product`
-# + attr08 - The `attr08` field of `Product`
-# + attr09 - The `attr09` field of `Product`
-# + attr10 - The `attr10` field of `Product`
-# + attr11 - The `attr11` field of `Product`
-# + attr12 - The `attr12` field of `Product`
-# + attr13 - The `attr13` field of `Product`
-# + attr14 - The `attr14` field of `Product`
-# + num01 - The `num01` field of `Product`
-# + num02 - The `num02` field of `Product`
-# + num03 - The `num03` field of `Product`
-# + num04 - The `num04` field of `Product`
-# + num05 - The `num05` field of `Product`
-# + num06 - The `num06` field of `Product`
-# + num07 - The `num07` field of `Product`
-# + dec01 - The `dec01` field of `Product`
-# + dec02 - The `dec02` field of `Product`
-# + dec03 - The `dec03` field of `Product`
-# + dec04 - The `dec04` field of `Product`
-# + dec05 - The `dec05` field of `Product`
-# + dec06 - The `dec06` field of `Product`
 public type ProductRelatedPartial record {|
+    # The `id` field of `Product`
     int id;
+    # The `name` field of `Product`
     string name?;
+    # The `description` field of `Product`
     string description?;
+    # The `attr01` field of `Product`
     string attr01?;
+    # The `attr02` field of `Product`
     string attr02?;
+    # The `attr03` field of `Product`
     string attr03?;
+    # The `attr04` field of `Product`
     string attr04?;
+    # The `attr05` field of `Product`
     string attr05?;
+    # The `attr06` field of `Product`
     string attr06?;
+    # The `attr07` field of `Product`
     string attr07?;
+    # The `attr08` field of `Product`
     string attr08?;
+    # The `attr09` field of `Product`
     string attr09?;
+    # The `attr10` field of `Product`
     string attr10?;
+    # The `attr11` field of `Product`
     string attr11?;
+    # The `attr12` field of `Product`
     string attr12?;
+    # The `attr13` field of `Product`
     string attr13?;
+    # The `attr14` field of `Product`
     string attr14?;
+    # The `num01` field of `Product`
     int num01?;
+    # The `num02` field of `Product`
     int num02?;
+    # The `num03` field of `Product`
     int num03?;
+    # The `num04` field of `Product`
     int num04?;
+    # The `num05` field of `Product`
     int num05?;
+    # The `num06` field of `Product`
     int num06?;
+    # The `num07` field of `Product`
     int num07?;
+    # The `dec01` field of `Product`
     decimal dec01?;
+    # The `dec02` field of `Product`
     decimal dec02?;
+    # The `dec03` field of `Product`
     decimal dec03?;
+    # The `dec04` field of `Product`
     decimal dec04?;
+    # The `dec05` field of `Product`
     decimal dec05?;
+    # The `dec06` field of `Product`
     decimal dec06?;
 |};
 
@@ -1175,17 +1145,15 @@ final dataservice:Entity dataserviceProductEntity = {
 };
 
 # The response to creating one product.
-#
-# + body - The created product
 public type ProductCreated record {|
     *http:Created;
+    # The created product
     Product body;
 |};
 
 # The response to creating several products.
-#
-# + body - The created products
 public type ProductListCreated record {|
     *http:Created;
+    # The created products
     ProductList body;
 |};

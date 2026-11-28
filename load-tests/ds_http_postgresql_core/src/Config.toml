@@ -1,0 +1,9 @@
+[ds_http_postgresql_core]
+host = "perf-db"
+port = 5432
+user = "postgres"
+password = "password"
+database = "perf"
+
+[ds_http_postgresql_core.dataserviceConfig]
+port = 9090

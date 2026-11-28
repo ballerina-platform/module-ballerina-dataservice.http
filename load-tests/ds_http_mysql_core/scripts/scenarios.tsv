@@ -11,3 +11,5 @@ create	POST	/api/customers	{"id":${__Random(10000000,2000000000)},"name":"n","em
 patch	PATCH	/api/customers/${__Random(1,1000)}	{"tier":${__Random(1,4)}}
 to_many_20	GET	/api/salesOrders?size=20&offset=${__Random(0,1000)}&fields=status,total,items	
 to_many_100	GET	/api/salesOrders?size=100&offset=${__Random(0,1000)}&fields=status,total,items	
+to_many_20_u7@7	GET	/api/salesOrders?size=20&offset=${__Random(0,1000)}&fields=status,total,items	
+to_many_100_u7@7	GET	/api/salesOrders?size=100&offset=${__Random(0,1000)}&fields=status,total,items	

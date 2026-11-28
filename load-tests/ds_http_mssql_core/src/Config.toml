@@ -1,0 +1,9 @@
+[ds_http_mssql_core]
+host = "perf-db"
+port = 1433
+user = "sa"
+password = "Perf@12345"
+database = "perf"
+
+[ds_http_mssql_core.dataserviceConfig]
+port = 9090

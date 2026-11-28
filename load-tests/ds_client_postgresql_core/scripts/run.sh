@@ -24,10 +24,16 @@ header="Label,# Samples,Average,Median,90% Line,95% Line,99% Line,Min,Max,Error 
 
 while IFS=$'\t' read -r name method path body; do
     [[ -z "$name" ]] && continue
+    # A scenario named name@count runs with that many users.
+    scenario_users="$users"
+    if [[ "$name" == *@* ]]; then
+        scenario_users="${name##*@}"
+        name="${name%@*}"
+    fi
     echo "-------- $name --------"
     jtl="$resultsDir/$name.jtl"
     rm -f "$jtl"
-    jmeter -n -t "$scriptsDir/request.jmx" -l "$jtl" -Jusers="$users" -Jduration="$duration" -JrampUpPeriod=30 \
+    jmeter -n -t "$scriptsDir/request.jmx" -l "$jtl" -Jusers="$scenario_users" -Jduration="$duration" -JrampUpPeriod=30 \
         -Jhost=bal.perf.test -Jport=80 -Jprotocol=http -Jmethod="$method" \
         -Jpath="${path//ORDERS/$orders}" -Jbody="${body//ORDERS/$orders}" \
         -Jjmeter.save.saveservice.output_format=csv -Jjmeter.save.saveservice.print_field_names=true \
@@ -54,7 +60,7 @@ while IFS=$'\t' read -r name method path body; do
                 times[at(0.95)], times[at(0.99)], times[1], times[n], 100 * errors / n, n / span,
                 bytes / 1024 / span, sd
         }')
-    echo "$name,$row,$(date +%s),0,$users" >> "$summary"
-    echo "PERF_RESULT,$test_name,$name,$users,$row"
+    echo "$name,$row,$(date +%s),0,$scenario_users" >> "$summary"
+    echo "PERF_RESULT,$test_name,$name,$scenario_users,$row"
     rm -f "$jtl"
 done < "$scriptsDir/scenarios.tsv"
