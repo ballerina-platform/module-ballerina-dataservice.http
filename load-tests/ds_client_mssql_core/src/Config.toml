@@ -1,0 +1,7 @@
+[ds_client_mssql_core]
+host = "perf-db"
+port = 1433
+user = "sa"
+password = "Perf@12345"
+database = "perf"
+servicePort = 9090

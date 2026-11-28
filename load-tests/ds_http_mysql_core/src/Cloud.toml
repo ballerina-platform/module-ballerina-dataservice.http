@@ -6,7 +6,7 @@ name = "ds_http_mysql_core"
 min_memory = "512Mi"
 max_memory = "1Gi"
 min_cpu = "500m"
-max_cpu = "1000m"
+max_cpu = "2000m"
 
 [cloud.deployment.autoscaling]
 min_replicas = 1
